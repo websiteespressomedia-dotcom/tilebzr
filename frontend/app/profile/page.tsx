@@ -6,6 +6,56 @@ import { fetchMyOrders } from "@/store/slices/orderSlice";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
+const getProductImagePath = (image: string | undefined | null, category?: string, size?: string) => {
+  if (!image) return "/placeholder-tile.jpg";
+  if (image.startsWith("http")) return image;
+  if (image.startsWith("/tiles/")) return image;
+
+  const cleanImage = image.trim();
+  const upper = cleanImage.toUpperCase();
+
+  // Determine category and size
+  const resolvedCategory = (category || "").toLowerCase();
+  const resolvedSize = (size || "").toLowerCase();
+
+  const isAccessory = resolvedCategory === "accessories" || 
+    upper.includes("TRIM") || 
+    upper.includes("SPACER") || 
+    upper.includes("WEDGE") || 
+    upper.includes("MATTING") || 
+    upper.includes("LEVEL") || 
+    upper.includes("ADHESIVE") || 
+    upper.includes("GLUE");
+
+  if (isAccessory) {
+    if (upper.includes("TRIM")) {
+      return `/tiles/accessories/trim/${cleanImage}`;
+    }
+    if (upper.includes("SPACER") || upper.includes("WEDGE")) {
+      return `/tiles/accessories/spacer/${cleanImage}`;
+    }
+    if (upper.includes("MATTING") || upper.includes("LEVEL")) {
+      return `/tiles/accessories/matting/${cleanImage}`;
+    }
+    if (upper.includes("ADHESIVE") || upper.includes("GLUE")) {
+      return `/tiles/accessories/adhesive/${cleanImage}`;
+    }
+    return `/tiles/accessories/${cleanImage}`;
+  }
+
+  // Determine size
+  let folderSize = resolvedSize;
+  if (!folderSize) {
+    if (upper.includes("600X1200")) {
+      folderSize = "600x1200";
+    } else {
+      folderSize = "600x600"; // default size
+    }
+  }
+
+  return `/tiles/${folderSize}/${cleanImage}`;
+};
+
 export default function ProfilePage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
@@ -192,6 +242,55 @@ export default function ProfilePage() {
             </div>
 
             {/* Expanded Content (Items) */}
+            {isExpanded && (
+              <div className="border-t border-gray-100 p-6 bg-gray-50/50 space-y-4">
+                <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Order Items</h4>
+                <div className="divide-y divide-gray-100">
+                  {(order.items || order.order_items || []).map((item) => (
+                    <div key={item.id} className="py-4 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-4">
+                        {item.product_image && (
+                          <img 
+                            src={getProductImagePath(item.product_image, item.product?.category, item.product?.size)} 
+                            alt={item.product_name} 
+                            className="w-12 h-12 object-cover border border-gray-100 rounded-sm"
+                          />
+                        )}
+                        <div>
+                          <p className="font-medium text-[#4a2c2a]">{item.product_name}</p>
+                          <p className="text-[10px] text-gray-400 mt-0.5">
+                            Qty: {item.quantity} {item.unit || 'sqm'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-[#4a2c2a]">£{(item.price_at_purchase * item.quantity).toFixed(2)}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">£{item.price_at_purchase.toFixed(2)} / {item.unit || 'sqm'}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="border-t border-gray-100 pt-4 flex flex-col gap-2 text-xs text-gray-500">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span className="font-medium text-[#4a2c2a]">£{(order.total_amount - (order.vat_amount || 0) - (order.shipping_cost || 0)).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>VAT (20%)</span>
+                    <span className="font-medium text-[#4a2c2a]">£{(order.vat_amount || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Shipping</span>
+                    <span className="font-medium text-[#4a2c2a]">£{(order.shipping_cost || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-100 pt-2 font-bold text-sm text-[#4a2c2a]">
+                    <span>Total Paid</span>
+                    <span>£{order.total_amount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
             
           </div>
         );

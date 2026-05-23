@@ -42,15 +42,16 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { logout } from "@/store/slices/authSlice";
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  Users, 
-  LogOut, 
-  ArrowLeft 
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  Users,
+  Mail,
+  LogOut,
+  ArrowLeft,
 } from "lucide-react";
-import { fetchDashboardStats, fetchAllCustomers, clearAdminData } from "@/store/slices/adminSlice";
+import { fetchDashboardStats, fetchAllCustomers, fetchProjectInquiries, clearAdminData } from "@/store/slices/adminSlice";
 import { fetchAdminProducts, clearProductData } from "@/store/slices/productSlice";
 import { fetchAllOrders, clearOrders } from "@/store/slices/orderSlice";
 
@@ -58,6 +59,7 @@ const navLinks = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Products", href: "/admin/products", icon: Package },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { name: "Inquiries", href: "/admin/inquiries", icon: Mail },
   { name: "Customers", href: "/admin/customers", icon: Users },
 ];
 
@@ -107,6 +109,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         dispatch(fetchAdminProducts());
         dispatch(fetchAllOrders());
         dispatch(fetchAllCustomers());
+        dispatch(fetchProjectInquiries());
       }
     }
   }, [user, token, loading, isHydrated, router, dispatch]);

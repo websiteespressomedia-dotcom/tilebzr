@@ -14,6 +14,34 @@ import {
 } from "react-icons/io5";
 import { fetchAdminProducts } from "@/store/slices/productSlice"; 
 
+const getProductImagePath = (product: any) => {
+  if (!product || !product.image) return "/placeholder-tile.jpg";
+  if (product.image.startsWith("http")) return product.image;
+  if (product.image.startsWith("/")) return product.image;
+  
+  const category = (product.category || "").toLowerCase();
+  const size = (product.size || "").toLowerCase();
+  const imgName = product.image.toUpperCase();
+  
+  if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+    if (imgName.includes("TRIM")) {
+      return `/tiles/accessories/trim/${product.image}`;
+    }
+    if (imgName.includes("SPACER") || imgName.includes("WEDGE")) {
+      return `/tiles/accessories/spacer/${product.image}`;
+    }
+    if (imgName.includes("MATTING") || imgName.includes("LEVEL")) {
+      return `/tiles/accessories/matting/${product.image}`;
+    }
+    if (imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+      return `/tiles/accessories/adhesive/${product.image}`;
+    }
+    return `/tiles/accessories/${product.image}`;
+  }
+  
+  return `/tiles/${size}/${product.image}`;
+};
+
 export default function AdminProductsPage() {
   const dispatch = useAppDispatch();
   const { items: products, loading } = useAppSelector((state) => state.products);
@@ -179,7 +207,7 @@ export default function AdminProductsPage() {
                   <td>
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 relative bg-gray-50 rounded-sm overflow-hidden border border-gray-100">
-                        <Image src={product.image} alt={product.name} fill className="object-cover" />
+                        <Image src={getProductImagePath(product)} alt={product.name} fill className="object-cover" />
                       </div>
                       <div>
                         <p className="text-[11px] font-bold text-gray-900 uppercase tracking-wider">{product.name}</p>
@@ -215,7 +243,7 @@ export default function AdminProductsPage() {
           {currentItems.map((product) => (
             <div key={product.id} className="group border border-gray-100 p-4 rounded-sm hover:shadow-xl transition-all">
                <div className="relative aspect-square mb-4 bg-gray-50 rounded-sm overflow-hidden">
-                  <Image src={product.image} alt={product.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+                  <Image src={getProductImagePath(product)} alt={product.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
                   <div className="absolute top-3 left-3 bg-white/95 px-2 py-1 text-[8px] font-black uppercase tracking-widest text-[#4a2c2a] shadow-sm">
                     {product.finish}
                   </div>

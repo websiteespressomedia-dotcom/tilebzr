@@ -6,16 +6,57 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import { clearCart } from "@/store/slices/cartSlice";
+import { createOrderAsync } from "@/store/slices/orderSlice";
 import { CheckCircle2, ChevronLeft, Loader2 } from "lucide-react";
+
+const getProductImagePath = (product: any) => {
+  if (!product || !product.image) return "/placeholder-tile.jpg";
+  if (product.image.startsWith("http")) return product.image;
+  if (product.image.startsWith("/tiles/")) return product.image;
+  
+  const category = (product.category || "").toLowerCase();
+  const size = (product.size || "").toLowerCase();
+  const imgName = product.image.toUpperCase();
+  
+  if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+    if (imgName.includes("TRIM")) {
+      return `/tiles/accessories/trim/${product.image}`;
+    }
+    if (imgName.includes("SPACER") || imgName.includes("WEDGE")) {
+      return `/tiles/accessories/spacer/${product.image}`;
+    }
+    if (imgName.includes("MATTING") || imgName.includes("LEVEL")) {
+      return `/tiles/accessories/matting/${product.image}`;
+    }
+    if (imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+      return `/tiles/accessories/adhesive/${product.image}`;
+    }
+    return `/tiles/accessories/${product.image}`;
+  }
+  
+  return `/tiles/${size}/${product.image}`;
+};
+
+const getProductPrice = (product: any) => {
+  if (!product) return 0;
+  const price = Number(product.price) || 0;
+  const discountPrice = Number(product.discount_price) || 0;
+  if (discountPrice > 0 && discountPrice < price) {
+    return discountPrice;
+  }
+  return price;
+};
 
 export default function CheckoutPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { items: cartItems } = useAppSelector((state) => state.cart);
+  const { token, user } = useAppSelector((state) => state.auth);
 
   const [isMounted, setIsMounted] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -30,8 +71,29 @@ export default function CheckoutPage() {
     setIsMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (isMounted && !token) {
+      router.push("/login?redirect=/checkout");
+    }
+  }, [token, isMounted, router]);
+
+  useEffect(() => {
+    if (user) {
+      setFormData((prev) => ({
+        ...prev,
+        email: user.email || "",
+        firstName: user.full_name?.split(" ")[0] || "",
+        lastName: user.full_name?.split(" ").slice(1).join(" ") || "",
+        phone: user.phone_number || "",
+        address: user.address_line1 || "",
+        city: user.city || "",
+        postcode: user.postcode || "",
+      }));
+    }
+  }, [user]);
+
   const totalPrice = cartItems.reduce((acc, item) => {
-    return acc + (item.product?.discount_price || item.product?.price || 0) * item.quantity;
+    return acc + getProductPrice(item.product) * item.quantity;
   }, 0);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,17 +101,27 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handlePlaceOrder = (e: React.FormEvent) => {
+  const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setErrorMsg(null);
 
-    // Simulate API delay for placing the order
-    setTimeout(() => {
+    try {
+      await dispatch(createOrderAsync({
+        address_line1: formData.address,
+        city: formData.city,
+        postcode: formData.postcode,
+        country: "United Kingdom"
+      })).unwrap();
+
       setIsProcessing(false);
       setIsSuccess(true);
       dispatch(clearCart());
       window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 2000);
+    } catch (err: any) {
+      setIsProcessing(false);
+      setErrorMsg(err || "Failed to place order");
+    }
   };
 
   if (!isMounted) return null;
@@ -183,7 +255,7 @@ export default function CheckoutPage() {
                         <div key={item.id} className="flex gap-4">
                           <div className="relative w-20 h-20 bg-white border border-gray-100 flex-shrink-0">
                             <Image 
-                              src={product.image.startsWith('http') ? product.image : (product.image.startsWith('/tiles/') ? product.image : `/tiles/${product.image}`)} 
+                              src={getProductImagePath(product)} 
                               alt={product.name} 
                               fill 
                               className="object-cover"
@@ -197,12 +269,12 @@ export default function CheckoutPage() {
                               {product.name}
                             </h4>
                             <p className="text-[11px] text-gray-500">
-                              £{(product.discount_price || product.price).toFixed(2)} /m²
+                              £{getProductPrice(product).toFixed(2)} /m²
                             </p>
                           </div>
                           <div className="ml-auto flex items-center">
                             <p className="text-[12px] font-bold text-[#4a2c2a]">
-                              £{((product.discount_price || product.price) * item.quantity).toFixed(2)}
+                              £{(getProductPrice(product) * item.quantity).toFixed(2)}
                             </p>
                           </div>
                         </div>
@@ -227,6 +299,12 @@ export default function CheckoutPage() {
                       <span className="text-2xl font-serif text-[#4a2c2a]">£{totalPrice.toFixed(2)}</span>
                     </div>
                   </div>
+
+                  {errorMsg && (
+                    <div className="bg-red-50 border border-red-100 text-red-600 p-4 mb-4 text-xs font-bold uppercase tracking-wider text-center rounded-sm">
+                      {errorMsg}
+                    </div>
+                  )}
 
                   <button
                     type="submit"

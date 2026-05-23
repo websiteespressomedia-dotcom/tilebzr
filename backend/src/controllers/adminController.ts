@@ -159,7 +159,7 @@ export const adminGetProducts = async (req: Request, res: Response) => {
 // 1. Add New Product
 export const addProduct = async (req: Request, res: Response) => {
   try {
-    const { name, description, price, discount_price, stock, category, finish, size, thickness, material } = req.body;
+    const { name, description, price, discount_price, stock, category, finish, size, thickness, material, is_active } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ message: 'Product image is required' });
@@ -215,7 +215,8 @@ export const addProduct = async (req: Request, res: Response) => {
         finish,
         size, 
         thickness, 
-        material, 
+        material,
+        is_active: is_active === 'true' || is_active === true,
         image: imageUrl 
       }])
       .select().single();
@@ -300,6 +301,9 @@ export const updateProduct = async (req: Request, res: Response) => {
     }
 
     if (updates.stock) updates.stock = parseInt(updates.stock);
+    if (Object.prototype.hasOwnProperty.call(updates, 'is_active')) {
+      updates.is_active = updates.is_active === 'true' || updates.is_active === true;
+    }
 
     const { data, error } = await supabase
       .from('products')
@@ -408,7 +412,8 @@ export const adminGetOrderById = async (req: Request, res: Response) => {
             finish,
             thickness,
             material,
-            discount_price
+            discount_price,
+            category
           )
         )
       `)

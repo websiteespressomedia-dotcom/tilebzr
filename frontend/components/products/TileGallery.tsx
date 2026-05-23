@@ -122,7 +122,6 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
       if (upperName.includes("SALTED CONCRETO") && upperName.includes("(1)")) {
         return false;
       }
-
       if (sizeFilter === "accessories") {
         let matchesAccessory = true;
         if (finishFilter) {
@@ -304,7 +303,6 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
             >
               New Arrivals
             </Link>
-
             {uniqueFinishes.map((finish) => (
               <Link
                 key={finish}
@@ -364,12 +362,12 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
             <div key={imageName} className="group flex flex-col">
               {/* Boxed Aspect Ratio like the original design */}
               <Link href={`/products/${encodeURIComponent(imageName)}`} className="relative w-full aspect-[5/4] bg-[#fbfbfb] flex items-center justify-center p-6 mb-5 overflow-hidden group/image cursor-pointer">
-                <img
+                <Image
                   src={`/tiles/${imageName}`}
                   alt={fileNameOnly}
-                  
-                  
-                  className="w-full h-full object-contain p-8  transition-transform duration-700 group-hover/image:scale-105"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                  className="object-contain p-8 mix-blend-multiply transition-transform duration-700 group-hover/image:scale-105"
                 />
 
                 {/* View Details Overlay on Hover */}

@@ -76,7 +76,7 @@ export default function FilterInterface({
                 : "bg-[#f4f1f0] text-[#4a2c2a] border-transparent hover:border-gray-200"
             }`}
           >
-            {f} TILES
+            {f === "PUNCHGL" ? "POSTER" : `${f} TILES`}
           </button>
         ))}
       </div>
@@ -118,7 +118,7 @@ export default function FilterInterface({
                     className="w-5 h-5 border-gray-300 rounded-none accent-[#4a2c2a] cursor-pointer"
                   />
                   <span className="text-[14px] uppercase tracking-tight text-[#4a2c2a] opacity-70 group-hover:opacity-100">
-                    {f.replace("GL", " GLOSS")}
+                    {f === "PUNCHGL" ? "POSTER" : f.replace("GL", " GLOSS")}
                   </span>
                 </label>
               ))}

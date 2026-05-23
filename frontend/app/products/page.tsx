@@ -1,9 +1,39 @@
 import React, { Suspense } from "react";
+import fs from "fs";
+import path from "path";
 import TileGallery from "@/components/products/TileGallery";
 import ApplicationPossibilities from "@/components/home/ApplicationPossibilities";
-import tilesList from "../tiles-list.json";
 
 export default function ProductsPage() {
+  const tilesDirectory = path.join(process.cwd(), "public/tiles");
+  let allFiles: string[] = [];
+
+  const getFilesRecursively = (dir: string): string[] => {
+    let results: string[] = [];
+    if (!fs.existsSync(dir)) return results;
+
+    const list = fs.readdirSync(dir);
+    list.forEach((file) => {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+
+      if (stat && stat.isDirectory()) {
+        results = results.concat(getFilesRecursively(filePath));
+      } else if (/\.(jpg|jpeg|png|webp|avif)$/i.test(file)) {
+        const relativePath = path.relative(tilesDirectory, filePath);
+        results.push(relativePath.replace(/\\/g, '/'));
+      }
+    });
+
+    return results;
+  };
+
+  try {
+    allFiles = getFilesRecursively(tilesDirectory);
+  } catch (e) {
+    console.error("Error reading tiles directory:", e);
+  }
+
   return (
     <div className="bg-white min-h-screen">
       <section className="mt-20 md:mt-24 pb-20">
@@ -17,7 +47,7 @@ export default function ProductsPage() {
           </header>
 
           <Suspense fallback={<div className="py-40 flex justify-center"><div className="animate-spin h-10 w-10 border-b-2 border-[#4a2c2a] rounded-full"></div></div>}>
-            <TileGallery initialImages={tilesList} />
+            <TileGallery initialImages={allFiles} />
           </Suspense>
         </main>
       </section>

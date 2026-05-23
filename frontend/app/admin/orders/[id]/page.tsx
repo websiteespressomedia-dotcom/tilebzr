@@ -24,7 +24,6 @@ interface OrderItem {
   price_at_purchase: number; // Price at time of purchase
   quantity: number;
   unit: string;
-  // Live data joined from 'products' table
   product?: {
     id: string;
     name: string;
@@ -35,6 +34,7 @@ interface OrderItem {
     finish: string;
     thickness: string;
     material: string;
+    category: string;
   };
 }
 
@@ -61,6 +61,72 @@ interface ExtendedOrder {
   // The backend controller returns 'items' via the alias items:order_items
   items: OrderItem[]; 
 }
+
+const getItemUnitPrice = (item: any) => {
+  const priceAtPurchase = Number(item.price_at_purchase);
+  if (priceAtPurchase > 0) {
+    return priceAtPurchase;
+  }
+  if (item.product) {
+    const basePrice = Number(item.product.price) || 0;
+    const discountPrice = Number(item.product.discount_price) || 0;
+    if (discountPrice > 0 && discountPrice < basePrice) {
+      return discountPrice;
+    }
+    return basePrice;
+  }
+  return 0;
+};
+
+const getProductImagePath = (image: string | undefined | null, category?: string, size?: string) => {
+  if (!image) return "/placeholder-tile.jpg";
+  if (image.startsWith("http")) return image;
+  if (image.startsWith("/tiles/")) return image;
+
+  const cleanImage = image.trim();
+  const upper = cleanImage.toUpperCase();
+
+  // Determine category and size
+  const resolvedCategory = (category || "").toLowerCase();
+  const resolvedSize = (size || "").toLowerCase();
+
+  const isAccessory = resolvedCategory === "accessories" || 
+    upper.includes("TRIM") || 
+    upper.includes("SPACER") || 
+    upper.includes("WEDGE") || 
+    upper.includes("MATTING") || 
+    upper.includes("LEVEL") || 
+    upper.includes("ADHESIVE") || 
+    upper.includes("GLUE");
+
+  if (isAccessory) {
+    if (upper.includes("TRIM")) {
+      return `/tiles/accessories/trim/${cleanImage}`;
+    }
+    if (upper.includes("SPACER") || upper.includes("WEDGE")) {
+      return `/tiles/accessories/spacer/${cleanImage}`;
+    }
+    if (upper.includes("MATTING") || upper.includes("LEVEL")) {
+      return `/tiles/accessories/matting/${cleanImage}`;
+    }
+    if (upper.includes("ADHESIVE") || upper.includes("GLUE")) {
+      return `/tiles/accessories/adhesive/${cleanImage}`;
+    }
+    return `/tiles/accessories/${cleanImage}`;
+  }
+
+  // Determine size
+  let folderSize = resolvedSize;
+  if (!folderSize) {
+    if (upper.includes("600X1200")) {
+      folderSize = "600x1200";
+    } else {
+      folderSize = "600x600"; // default size
+    }
+  }
+
+  return `/tiles/${folderSize}/${cleanImage}`;
+};
 
 const OrderDetailsPage = () => {
   const { id } = useParams();
@@ -102,10 +168,7 @@ const OrderDetailsPage = () => {
   const displayItems = order.items || [];
 
   const calculatedSubtotal = displayItems.reduce((acc, item) => {
-    // Priority: discount_price > product.price > item.price_at_purchase
-    const unitPrice = Number(item.product?.discount_price) || 
-                      Number(item.product?.price) || 
-                      Number(item.price_at_purchase) || 0;
+    const unitPrice = getItemUnitPrice(item);
     const qty = Number(item.quantity) || 0;
     return acc + unitPrice * qty;
   }, 0);
@@ -204,18 +267,21 @@ const OrderDetailsPage = () => {
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {displayItems.map((item) => {
-                      const unitPrice = Number(item.product?.discount_price) || Number(item.product?.price) || Number(item.price_at_purchase) || 0;
+                      const unitPrice = getItemUnitPrice(item);
                       return (
                         <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-4">
                               <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-gray-100">
-                                <Image
-                                  src={item.product?.image || "/tiles/placeholder.jpg"}
-                                  alt="Product"
-                                  fill
-                                  className="object-cover"
-                                />
+                                 <Image
+                                   src={getProductImagePath(item.product?.image || item.product_image, item.product?.category, item.product?.size)}
+                                   alt="Product"
+                                   fill
+                                   className="object-cover"
+                                   unoptimized
+                                 />
+                                  
+                                
                               </div>
                               <div>
                                 <p className="text-sm font-bold text-gray-900 uppercase">{item.product?.name || item.product_name}</p>

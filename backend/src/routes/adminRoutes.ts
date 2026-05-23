@@ -11,6 +11,7 @@ import {
   getUserById,
   adminGetOrderById
 } from "../controllers/adminController.js";
+import { getAllInquiries } from "../controllers/inquiryController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
 import { upload } from "../config/cloudinary.js";
 
@@ -31,6 +32,9 @@ router.delete("/products/:id", deleteProduct);
 router.get("/orders", getAllOrders);
 router.get("/orders/:id", adminGetOrderById);
 router.patch("/orders/:id", updateOrderStatus);
+
+// Inquiry Management
+router.get("/inquiries", getAllInquiries);
 
 // Customer Management
 router.get("/users", getAllUsers);

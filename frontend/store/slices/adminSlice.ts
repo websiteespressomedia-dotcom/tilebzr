@@ -32,6 +32,17 @@ interface DashboardStats {
   totalProducts: number;
 }
 
+export interface Inquiry {
+  id: string;
+  contact_name: string;
+  company_name?: string;
+  email: string;
+  inquiry_type: string;
+  area_sqm: number | null;
+  message?: string;
+  created_at: string;
+}
+
 interface AdminState {
   customers: User[];
   selectedUser: User | null;
@@ -39,12 +50,14 @@ interface AdminState {
   loading: boolean;
   error: string | null;
   newsletter?: { items: any[]; total: number } | null;
+  inquiries: Inquiry[];
 }
 
 const initialState: AdminState = {
   stats: null,
   customers: [],
   selectedUser: null,
+  inquiries: [],
   loading: false,
   error: null,
 };
@@ -114,6 +127,21 @@ export const fetchNewsletterSubscribers = createAsyncThunk<{items: any[], total:
   }
 );
 
+export const fetchProjectInquiries = createAsyncThunk<Inquiry[], void, { rejectValue: string }>(
+  'admin/fetchProjectInquiries',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/admin/inquiries');
+      return response.data;
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message: string }>;
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to load inquiries'
+      );
+    }
+  }
+);
+
 const adminSlice = createSlice({
   name: 'admin',
   initialState,
@@ -122,6 +150,7 @@ const adminSlice = createSlice({
       state.stats = null;
       state.customers = [];
       state.selectedUser = null;
+      state.inquiries = [];
       state.error = null;
     }
   },
@@ -178,6 +207,20 @@ const adminSlice = createSlice({
       state.newsletter = action.payload;
     })
     .addCase(fetchNewsletterSubscribers.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    })
+    .addCase(fetchProjectInquiries.pending, (state) => {
+      if (state.inquiries.length === 0) {
+        state.loading = true;
+      }
+      state.error = null;
+    })
+    .addCase(fetchProjectInquiries.fulfilled, (state, action) => {
+      state.loading = false;
+      state.inquiries = action.payload;
+    })
+    .addCase(fetchProjectInquiries.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload as string;
     });

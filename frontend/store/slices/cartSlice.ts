@@ -67,16 +67,16 @@ export const fetchCart = createAsyncThunk<
 
 // 2. Add/Update Item
 export const addToCartAsync = createAsyncThunk<
-  CartItem,
+  void,
   { product_id: string; quantity: number },
   { rejectValue: string }
 >(
   "cart/addToCart",
-  async (payload, { rejectWithValue }) => {
+  async (payload, { dispatch, rejectWithValue }) => {
     try {
-      const response = await api.post("/api/cart", payload);
-
-      return response.data;
+      await api.post("/api/cart", payload);
+      // Fetch the updated cart from the backend to get the joined product details
+      await dispatch(fetchCart() as any).unwrap();
     } catch (err) {
       const error = err as AxiosError<BackendError>;
 
@@ -172,20 +172,41 @@ const cartSlice = createSlice({
       // Fetch Cart
       .addCase(fetchCart.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(fetchCart.fulfilled, (state, action) => {
-  // Prevent empty response from wiping cart
-  if (action.payload?.items?.length > 0) {
-    state.items = action.payload.items;
-  }
-})
+        state.loading = false;
+        state.items = action.payload?.items || [];
+      })
       .addCase(fetchCart.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
-      // Remove Item (Optimistic UI Update)
+      // Add Item
+      .addCase(addToCartAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addToCartAsync.fulfilled, (state) => {
+        state.loading = false;
+        // Items are updated by the subsequent fetchCart thunk
+      })
+      .addCase(addToCartAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Remove Item
+      .addCase(removeFromCartAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(removeFromCartAsync.fulfilled, (state, action) => {
+        state.loading = false;
         state.items = state.items.filter((item) => item.id !== action.payload);
+      })
+      .addCase(removeFromCartAsync.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
       });
   },
 });

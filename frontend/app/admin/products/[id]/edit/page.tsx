@@ -287,6 +287,56 @@ interface Product {
   is_active: boolean;
   slug?: string;
 }
+const getProductImagePath = (image: string | undefined | null, category?: string, size?: string) => {
+  if (!image) return "/placeholder-tile.jpg";
+  if (image.startsWith("http")) return image;
+  if (image.startsWith("/tiles/")) return image;
+
+  const cleanImage = image.trim();
+  const upper = cleanImage.toUpperCase();
+
+  // Determine category and size
+  const resolvedCategory = (category || "").toLowerCase();
+  const resolvedSize = (size || "").toLowerCase();
+
+  const isAccessory = resolvedCategory === "accessories" || 
+    upper.includes("TRIM") || 
+    upper.includes("SPACER") || 
+    upper.includes("WEDGE") || 
+    upper.includes("MATTING") || 
+    upper.includes("LEVEL") || 
+    upper.includes("ADHESIVE") || 
+    upper.includes("GLUE");
+
+  if (isAccessory) {
+    if (upper.includes("TRIM")) {
+      return `/tiles/accessories/trim/${cleanImage}`;
+    }
+    if (upper.includes("SPACER") || upper.includes("WEDGE")) {
+      return `/tiles/accessories/spacer/${cleanImage}`;
+    }
+    if (upper.includes("MATTING") || upper.includes("LEVEL")) {
+      return `/tiles/accessories/matting/${cleanImage}`;
+    }
+    if (upper.includes("ADHESIVE") || upper.includes("GLUE")) {
+      return `/tiles/accessories/adhesive/${cleanImage}`;
+    }
+    return `/tiles/accessories/${cleanImage}`;
+  }
+
+  // Determine size
+  let folderSize = resolvedSize;
+  if (!folderSize) {
+    if (upper.includes("600X1200")) {
+      folderSize = "600x1200";
+    } else {
+      folderSize = "600x600"; // default size
+    }
+  }
+
+  return `/tiles/${folderSize}/${cleanImage}`;
+};
+
 // --- ACTUAL FORM COMPONENT ---
 function ProductEditForm({ product, id }: { product: Product; id: string }) {
   const router = useRouter();
@@ -312,6 +362,10 @@ function ProductEditForm({ product, id }: { product: Product; id: string }) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(product.image);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  const resolvedSrc = (previewUrl && (previewUrl.startsWith("blob:") || previewUrl.startsWith("http") || previewUrl.startsWith("/tiles/")))
+    ? previewUrl
+    : getProductImagePath(previewUrl, product.category, product.size);
 
   const handleDrag = (e: React.DragEvent) => {
   e.preventDefault();
@@ -414,9 +468,9 @@ const handleDrop = (e: React.DragEvent) => {
             onClick={() => fileInputRef.current?.click()}
             className={`relative aspect-square border-2 border-dashed border-gray-100 bg-gray-50 rounded-sm flex flex-col items-center justify-center cursor-pointer hover:border-[#4a2c2a] transition-all overflow-hidden group ${isDragging ? 'border-[#4a2c2a] bg-[#4a2c2a]/5' : 'border-gray-100 bg-gray-50'}`}
           >
-            {previewUrl ? (
+            {resolvedSrc ? (
               <>
-                <Image src={previewUrl} alt="Preview" fill sizes="90vw" className="object-contain p-2" />
+                <Image src={resolvedSrc} alt="Preview" fill sizes="90vw" className="object-contain p-2" />
                 <div className="absolute inset-0 bg-[#4a2c2a]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <IoCloudUploadOutline size={30} className="text-white" />
                 </div>
@@ -493,7 +547,7 @@ const handleDrop = (e: React.DragEvent) => {
                 <option value="Matt">MATT</option>
                 <option value="Carving">CARVING</option>
                 <option value="High Gloss">HIGH GLOSS</option>
-                <option value="Poster">POSTER</option>
+                <option value="Punch Glossy">PUNCH GLOSSY</option>
                 <option value="Lovelin">LOVELIN</option>
                 <option value="Typhoon">TYPHOON</option>
               </select>

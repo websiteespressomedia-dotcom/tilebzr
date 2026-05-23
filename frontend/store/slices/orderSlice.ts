@@ -33,6 +33,7 @@ export interface OrderItem {
     finish: string;
     thickness: string;
     material: string;
+    category: string;
   };
 }
 
@@ -53,6 +54,7 @@ export interface Order {
   created_at: string;
   user?: OrderUser;
   items?: OrderItem[]; // We named it 'items' in the controller query
+  order_items?: OrderItem[];
 }
 
 interface OrderState {
@@ -150,6 +152,20 @@ export const fetchAdminOrderById = createAsyncThunk<
   }
 });
 
+export const createOrderAsync = createAsyncThunk<
+  { message: string; orderId: string; total: number },
+  { address_line1: string; address_line2?: string; city: string; postcode: string; country?: string },
+  { rejectValue: string }
+>("orders/create", async (orderData, { rejectWithValue }) => {
+  try {
+    const response = await api.post("/api/orders", orderData);
+    return response.data;
+  } catch (err: unknown) {
+    const error = err as AxiosError<{ message: string }>;
+    return rejectWithValue(error.response?.data?.message || "Failed to place order");
+  }
+});
+
 const orderSlice = createSlice({
   name: "orders",
   initialState,
@@ -243,6 +259,18 @@ const orderSlice = createSlice({
       )
 
       .addCase(fetchAdminOrderById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Create Order
+      .addCase(createOrderAsync.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createOrderAsync.fulfilled, (state) => {
+        state.loading = false;
+      })
+      .addCase(createOrderAsync.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       });

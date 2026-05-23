@@ -129,6 +129,44 @@ import {
 
 import { useRouter } from "next/navigation";
 
+const getProductImagePath = (product: any) => {
+  if (!product || !product.image) return "/placeholder-tile.jpg";
+  if (product.image.startsWith("http")) return product.image;
+  if (product.image.startsWith("/tiles/")) return product.image;
+  
+  const category = (product.category || "").toLowerCase();
+  const size = (product.size || "").toLowerCase();
+  const imgName = product.image.toUpperCase();
+  
+  if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+    if (imgName.includes("TRIM")) {
+      return `/tiles/accessories/trim/${product.image}`;
+    }
+    if (imgName.includes("SPACER") || imgName.includes("WEDGE")) {
+      return `/tiles/accessories/spacer/${product.image}`;
+    }
+    if (imgName.includes("MATTING") || imgName.includes("LEVEL")) {
+      return `/tiles/accessories/matting/${product.image}`;
+    }
+    if (imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+      return `/tiles/accessories/adhesive/${product.image}`;
+    }
+    return `/tiles/accessories/${product.image}`;
+  }
+  
+  return `/tiles/${size}/${product.image}`;
+};
+
+const getProductPrice = (product: any) => {
+  if (!product) return 0;
+  const price = Number(product.price) || 0;
+  const discountPrice = Number(product.discount_price) || 0;
+  if (discountPrice > 0 && discountPrice < price) {
+    return discountPrice;
+  }
+  return price;
+};
+
 export default function CartDrawer({
   isOpen,
   onClose,
@@ -148,7 +186,7 @@ export default function CartDrawer({
   const totalPrice = cartItems.reduce((acc, item) => {
     return (
       acc +
-      (item.product?.discount_price || item.product?.price || 0) * item.quantity
+      getProductPrice(item.product) * item.quantity
     );
   }, 0);
 
@@ -260,13 +298,7 @@ export default function CartDrawer({
                   {" "}
                   <div className="relative w-24 h-24 flex-shrink-0 bg-[#f9f9f9] rounded-sm">
                     <Image
-                      src={
-                        product.image.startsWith("http")
-                          ? product.image
-                          : product.image.startsWith("/tiles/")
-                            ? product.image
-                            : `/tiles/${product.image}`
-                      }
+                      src={getProductImagePath(product)}
                       alt={product.name}
                       fill
                       sizes="90vw"
@@ -288,7 +320,7 @@ export default function CartDrawer({
 
                     <p className="text-[11px] text-[#4a2c2a] mt-1 tracking-tighter">
                       <span className="text-[12px]">
-                        £{product.discount_price || product.price} /m²{" "}
+                        £{getProductPrice(product)} /m²{" "}
                       </span>
                       • {product.size}
                     </p>
@@ -318,7 +350,7 @@ export default function CartDrawer({
                       <p className="text-[13px] font-bold text-[#4a2c2a]">
                         £
                         {(
-                          (product.discount_price || product.price) *
+                          getProductPrice(product) *
                           item.quantity
                         ).toFixed(2)}
                       </p>

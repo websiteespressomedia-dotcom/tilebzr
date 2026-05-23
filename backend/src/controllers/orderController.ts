@@ -29,9 +29,11 @@ export const createOrder = async (req: Request, res: Response) => {
     const orderItemsToInsert = cartItems.map((item: any) => {
       // Handle the Supabase join structure safely
       const product = Array.isArray(item.products) ? item.products[0] : item.products;
-      const unitPrice = (product?.discount_price && product.discount_price > 0) 
-        ? product.discount_price 
-        : (product?.price || 0);
+      const basePrice = Number(product?.price) || 0;
+      const discountPrice = Number(product?.discount_price) || 0;
+      const unitPrice = (discountPrice > 0 && discountPrice < basePrice) 
+        ? discountPrice 
+        : basePrice;
       subtotal += unitPrice * item.quantity;
 
       return {
@@ -160,7 +162,13 @@ export const getMyOrders = async (req: Request, res: Response) => {
       .from('orders')
       .select(`
         *,
-        order_items (*)
+        order_items (
+          *,
+          product:products (
+            category,
+            size
+          )
+        )
       `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });

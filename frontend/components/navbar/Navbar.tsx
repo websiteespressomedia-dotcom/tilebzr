@@ -65,7 +65,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { FiShoppingCart, FiUser } from "react-icons/fi";
+import { FiShoppingCart, FiUser, FiHeart } from "react-icons/fi";
 import CartDrawer from "../common/CartDrawer";
 import { useCart } from "@/context/CartContext";
 import { useAppSelector } from "@/store/hooks";
@@ -73,6 +73,7 @@ import { useAppSelector } from "@/store/hooks";
 const Navbar = () => {
   const { isCartOpen, setCartOpen } = useCart();
   const cartItems = useAppSelector((state) => state.cart.items);
+  const { user } = useAppSelector((state) => state.auth);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navLinks = [
@@ -123,11 +124,18 @@ const Navbar = () => {
           {/* Desktop Icons */}
           <div className="hidden items-center justify-end gap-7 text-[#4a2c2a] md:flex">
             <Link
-              href="/login"
+              href={user ? "/profile" : "/login"}
               aria-label="Account"
               className="flex h-10 w-10 items-center justify-center transition-opacity hover:opacity-60"
             >
               <FiUser size={20} strokeWidth={1.6} />
+            </Link>
+            <Link
+              href="/wishlist"
+              aria-label="Wishlist"
+              className="flex h-10 w-10 items-center justify-center transition-opacity hover:opacity-60"
+            >
+              <FiHeart size={20} strokeWidth={1.6} />
             </Link>
             <button
               type="button"
@@ -146,6 +154,13 @@ const Navbar = () => {
 
           {/* Mobile Toggle & Cart */}
           <div className="relative z-50 ml-auto flex items-center gap-4 text-[#4a2c2a] md:hidden">
+            <Link
+              href="/wishlist"
+              aria-label="Wishlist"
+              className="flex h-9 w-9 items-center justify-center transition-opacity hover:opacity-60"
+            >
+              <FiHeart size={20} strokeWidth={1.6} />
+            </Link>
             <button
               type="button"
               aria-label="Cart"
@@ -220,6 +235,22 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
+
+            <Link
+              href="/wishlist"
+              onClick={() => setIsMenuOpen(false)}
+              className="hover:opacity-60 transition-all font-bold text-[#4a2c2a]"
+            >
+              Wishlist
+            </Link>
+
+            <Link
+              href={user ? "/profile" : "/login"}
+              onClick={() => setIsMenuOpen(false)}
+              className="hover:opacity-60 transition-all font-bold text-[#4a2c2a] border-t border-gray-100 pt-4 w-full block text-right"
+            >
+              {user ? "Account" : "Login / Register"}
+            </Link>
 
             {/* Optional: Add a small decorative line at the bottom to match your style */}
             {/* <div className="w-8 h-[1px] bg-[#4a2c2a]/20 pt-2"></div> */}

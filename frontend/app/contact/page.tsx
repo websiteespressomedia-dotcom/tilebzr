@@ -367,7 +367,7 @@
 
 import React, { useState, useRef } from "react";
 import { FiPhone, FiMail, FiArrowRight, FiCheck, FiAlertCircle } from "react-icons/fi";
-import emailjs from "@emailjs/browser";
+import api from "@/lib/axios";
 
 export default function ContactPage() {
   const formRef = useRef<HTMLFormElement>(null);
@@ -380,12 +380,17 @@ export default function ContactPage() {
     setStatus("sending");
 
     try {
-      await emailjs.sendForm(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
-        formRef.current,
-        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
-      );
+      const formData = new FormData(formRef.current);
+      const payload = {
+        user_name: formData.get("user_name"),
+        company_name: formData.get("company_name"),
+        user_email: formData.get("user_email"),
+        inquiry_type: formData.get("inquiry_type"),
+        area_sqm: formData.get("area_sqm"),
+        message: formData.get("message"),
+      };
+
+      await api.post("/api/inquiries", payload);
 
       setStatus("sent");
       formRef.current.reset();

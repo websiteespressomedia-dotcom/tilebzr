@@ -30,19 +30,14 @@ async function seedProducts() {
       
       products.push({
         name: namePart.toUpperCase(),
-        // slug: `${namePart.toLowerCase().replace(/ /g, '-')}-${size}`,
         slug: namePart.toLowerCase().replace(/ /g, '-'),
         price: 15.00,
         discount_price: 20.00,
         image: file, // Store just the filename, we build path in frontend
         size: size.toUpperCase(),
-        // finish: finishPart ? finishPart.toUpperCase() : 'OTHER',
         finish: finishPart ? finishPart.toUpperCase() : null,
         category: 'Tiles',
-        // thickness: '9mm',
-        // material: 'Porcelain',
-        // description: 'Premium quality tile.',
-        // stock: 100,
+        stock_quantity: 100,
         is_active: true
       });
     }

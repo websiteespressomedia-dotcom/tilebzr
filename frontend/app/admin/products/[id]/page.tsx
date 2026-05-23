@@ -174,9 +174,10 @@ import Link from "next/link";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   fetchProductById, 
-//   deleteProductAsync, 
-  clearCurrentProduct 
+  clearCurrentProduct,
+  updateProductAsync
 } from "@/store/slices/productSlice";
+import toast from "react-hot-toast";
 import { 
   IoArrowBackOutline, 
   IoCreateOutline, 
@@ -189,11 +190,87 @@ import {
   IoCubeOutline
 } from "react-icons/io5";
 
+const getProductImagePath = (product: any) => {
+  if (!product || !product.image) return "/placeholder-tile.jpg";
+  if (product.image.startsWith("http")) return product.image;
+  if (product.image.startsWith("/")) return product.image;
+  
+  const category = (product.category || "").toLowerCase();
+  const size = (product.size || "").toLowerCase();
+  const imgName = product.image.toUpperCase();
+  
+  if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+    if (imgName.includes("TRIM")) {
+      return `/tiles/accessories/trim/${product.image}`;
+    }
+    if (imgName.includes("SPACER") || imgName.includes("WEDGE")) {
+      return `/tiles/accessories/spacer/${product.image}`;
+    }
+    if (imgName.includes("MATTING") || imgName.includes("LEVEL")) {
+      return `/tiles/accessories/matting/${product.image}`;
+    }
+    if (imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
+      return `/tiles/accessories/adhesive/${product.image}`;
+    }
+    return `/tiles/accessories/${product.image}`;
+  }
+  
+  return `/tiles/${size}/${product.image}`;
+};
+
 export default function AdminProductDetails() {
   const { id } = useParams();
 //   const router = useRouter();
   const dispatch = useAppDispatch();
   const { currentProduct, loading, error } = useAppSelector((state) => state.products);
+  const [isToggling, setIsToggling] = useState(false);
+
+  const handleToggleVisibility = async () => {
+    if (!currentProduct) return;
+    setIsToggling(true);
+
+    const data = new FormData();
+    data.append("is_active", (!currentProduct.is_active).toString());
+    
+    // Pass other fields to preserve them
+    data.append("name", currentProduct.name);
+    data.append("price", currentProduct.price.toString());
+    data.append("stock", currentProduct.stock.toString());
+    data.append("size", currentProduct.size);
+    data.append("finish", currentProduct.finish);
+    data.append("thickness", currentProduct.thickness);
+    data.append("material", currentProduct.material);
+
+    const updatePromise = dispatch(updateProductAsync({ id: currentProduct.id, data })).unwrap();
+
+    toast.promise(
+      updatePromise,
+      {
+        loading: 'Updating visibility status...',
+        success: <b>Product visibility updated!</b>,
+        error: <b>Failed to update visibility.</b>,
+      },
+      {
+        style: {
+          minWidth: '250px',
+          borderRadius: '4px',
+          background: '#4a2c2a',
+          color: '#fff',
+          fontSize: '11px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.2em',
+        },
+      }
+    );
+
+    try {
+      await updatePromise;
+    } catch (err) {
+      console.error("Toggle visibility failed:", err);
+    } finally {
+      setIsToggling(false);
+    }
+  };
 //   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
@@ -286,7 +363,7 @@ export default function AdminProductDetails() {
         <div className="space-y-8">
           <div className="relative aspect-square bg-gray-50 border border-gray-100 rounded-sm overflow-hidden shadow-inner">
             <Image 
-              src={currentProduct.image} 
+              src={getProductImagePath(currentProduct)} 
               alt={currentProduct.name} 
               fill 
               sizes="90vw"
@@ -298,11 +375,28 @@ export default function AdminProductDetails() {
           <div className="flex items-center justify-between p-4 bg-gray-50 rounded-sm">
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold">
               <span className="text-gray-400">Visibility:</span>
-              {currentProduct.is_active ? (
-                <span className="text-green-600 flex items-center gap-1"><IoCheckmarkCircleOutline size={14}/> Live on Shop</span>
-              ) : (
-                <span className="text-red-400 flex items-center gap-1"><IoCloseCircleOutline size={14}/> Hidden</span>
-              )}
+              <button 
+                onClick={handleToggleVisibility}
+                disabled={isToggling}
+                title="Click to toggle visibility on storefront"
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-sm border font-bold text-[9px] uppercase tracking-wider transition-all hover:scale-105 active:scale-95 ${
+                  currentProduct.is_active 
+                    ? "bg-green-50/50 border-green-200 text-green-700 hover:bg-green-100/50" 
+                    : "bg-red-50/50 border-red-200 text-red-700 hover:bg-red-100/50"
+                }`}
+              >
+                {currentProduct.is_active ? (
+                  <>
+                    <IoCheckmarkCircleOutline size={14} className="text-green-600" />
+                    Live on Shop
+                  </>
+                ) : (
+                  <>
+                    <IoCloseCircleOutline size={14} className="text-red-500" />
+                    Hidden
+                  </>
+                )}
+              </button>
             </div>
             <span className="text-[10px] text-gray-300 font-mono">{id}</span>
           </div>

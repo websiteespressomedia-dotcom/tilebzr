@@ -317,6 +317,55 @@ Base path: `/api/products`
 | GET    | `/:id`   | None                                             | `getProductById` | Public product detail by ID    |
 | POST   | `/`      | `protect`, `adminOnly`, `upload.single('image')` | `createProduct`  | Admin creates a product        |
 
+## 10. Supabase `project_inquiries` Table
+
+This backend expects the following Supabase table for inquiry submissions:
+
+- Table name: `public.project_inquiries`
+- Used by: `backend/src/controllers/inquiryController.ts`
+- Public API route: `POST /api/inquiries`
+- Admin API route: `GET /api/admin/inquiries`
+
+Use the SQL file `backend/SQL_CREATE_PROJECT_INQUIRIES_TABLE.sql` to create this table in Supabase.
+
+Required columns:
+
+- `id` — `uuid`, primary key, defaults to `gen_random_uuid()`
+- `contact_name` — `text`, not null
+- `company_name` — `text`, nullable
+- `email` — `text`, not null
+- `inquiry_type` — `text`, not null
+- `area_sqm` — `numeric`, nullable
+- `message` — `text`, nullable
+- `created_at` — `timestamptz`, not null, defaults to `now()`
+
+The controller currently also handles a fallback file if the Supabase table is missing, but creating this table ensures inquiries are stored persistently in the database.
+
+### Recommended SQL
+
+Run this in the Supabase SQL editor:
+
+```sql
+\set ON_ERROR_STOP on
+create extension if not exists "pgcrypto";
+create table if not exists public.project_inquiries (
+  id uuid primary key default gen_random_uuid(),
+  contact_name text not null,
+  company_name text,
+  email text not null,
+  inquiry_type text not null,
+  area_sqm numeric,
+  message text,
+  created_at timestamptz not null default now()
+);
+```
+
+### After creation
+
+- Confirm the table exists in Supabase.
+- Re-submit the contact form from the frontend.
+- Verify `GET /api/admin/inquiries` returns stored inquiries.
+
 ### `src/routes/cartRoutes.ts`
 
 Base path: `/api/cart`

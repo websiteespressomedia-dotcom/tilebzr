@@ -503,7 +503,7 @@ const AdminOrdersPage = () => {
         </div>
 
         {/* Table Container */}
-        <div className="relative flex-1 border border-gray-50 rounded-sm overflow-hidden flex flex-col"></div>
+        <div className="relative flex-1 border border-gray-50 rounded-sm overflow-hidden flex flex-col">
           <div className="overflow-y-auto overflow-x-auto h-full scrollbar-thin scrollbar-thumb-gray-200">
             <table className="w-full text-left border-separate border-spacing-0">
               <thead className="sticky top-0 z-20">
@@ -620,7 +620,7 @@ const AdminOrdersPage = () => {
             </div>
           )}
         </div>
-      
+      </div>
   );
 };
 

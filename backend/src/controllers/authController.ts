@@ -9,14 +9,14 @@ import { transporter } from '../config/mail.js';
 // 1. REGISTER USER
 export const register = async (req: Request, res: Response) => {
   try {
-    const { 
-      email, 
-      password, 
-      full_name, 
-      phone_number, 
-      address_line1, 
-      city, 
-      postcode 
+    const {
+      email,
+      password,
+      full_name,
+      phone_number,
+      address_line1,
+      city,
+      postcode
     } = req.body;
 
     // Basic validation
@@ -29,7 +29,7 @@ export const register = async (req: Request, res: Response) => {
       .from('users')
       .select('email')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email already exists' });
@@ -44,15 +44,15 @@ export const register = async (req: Request, res: Response) => {
     const { data, error } = await supabase
       .from('users')
       .insert([
-        { 
-          email, 
-          password: hashedPassword, 
-          full_name, 
+        {
+          email,
+          password: hashedPassword,
+          full_name,
           phone_number,
           address_line1,
           city,
           postcode,
-          country: 'United Kingdom' 
+          country: 'United Kingdom'
         }
       ])
       .select()
@@ -87,7 +87,7 @@ export const login = async (req: Request, res: Response) => {
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (error || !user) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -146,7 +146,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
       .from('users')
       .select('id, email')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -161,19 +161,19 @@ export const forgotPassword = async (req: Request, res: Response) => {
     }).eq('id', user.id);
 
     // Send Email
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`; 
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
     const mailOptions = {
-  from: `"TileBazaar Support" <${process.env.MAIL_USER}>`,
-  to: email,
-  subject: 'Password Reset Request',
-  html: `
+      from: `"TileBazaar Support" <${process.env.MAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset Request',
+      html: `
     <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd;">
       <h2>Reset Your Password</h2>
       <p>Click the link below to reset your TileBazaar account password:</p>
       <a href="${resetUrl}" style="background: #000; color: #fff; padding: 10px 15px; text-decoration: none;">Reset Password</a>
     </div>
   `,
-};
+    };
     await transporter.sendMail(mailOptions);
 
     res.json({ message: "Reset link sent to your email" });
@@ -219,14 +219,14 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id; // From 'protect' middleware
-    const { 
-      full_name, 
-      phone_number, 
-      address_line1, 
-      address_line2, 
-      city, 
+    const {
+      full_name,
+      phone_number,
+      address_line1,
+      address_line2,
+      city,
       postcode,
-      country 
+      country
     } = req.body;
 
     // We only update fields that are actually provided in the request
@@ -272,6 +272,7 @@ export const getProfile = async (req: Request, res: Response) => {
         id, 
         full_name, 
         email, 
+        role, 
         phone_number, 
         address_line1, 
         address_line2, 

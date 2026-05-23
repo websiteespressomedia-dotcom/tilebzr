@@ -231,7 +231,7 @@ export default function AddProductPage() {
       <option value="Matt">MATT</option>
       <option value="Carving">CARVING</option>
       <option value="High Gloss">HIGH GLOSS</option>
-      <option value="Poster">POSTER</option>
+      <option value="Punch Glossy">PUNCH GLOSSY</option>
       <option value="Lovelin">LOVELIN</option>
       <option value="Typhoon">TYPHOON</option>
     </select>
