@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { addToCartAsync, mockAddToCart } from "@/store/slices/cartSlice";
 import { RootState } from "@/store/store";
+import { useCart } from "@/context/CartContext";
+import TilePackCalculator from "@/components/products/TilePackCalculator";
 
 /* ─────────────────────────────────────────────
    Pure helper functions (same logic as TileGallery)
@@ -156,7 +158,8 @@ const getProductDetails = (fileName: string) => {
     upper.includes("AURL GRIGIO") ||
     upper.includes("PAVE") ||
     upper.includes("SALT CONCRETO") ||
-    upper.includes("SALTED CONCRETO")
+    upper.includes("SALTED CONCRETO") ||
+    upper.includes("OUTDOOR")
   ) {
     return {
       price: 18,
@@ -228,6 +231,116 @@ const getCategory = (fileName: string) => {
 /* ─────────────────────────────────────────────
    Page Component
 ───────────────────────────────────────────── */
+/* ─────────────────────────────────────────────
+   Adhesive Info Tabs Component
+───────────────────────────────────────────── */
+function AdhesiveTabs() {
+  const [active, setActive] = React.useState<string | null>("substrate");
+  const tabs = [
+    { id: "substrate", label: "Substrate Preparation" },
+    { id: "instruction", label: "Instruction for Use" },
+    { id: "technical", label: "Technical Information" },
+  ];
+  return (
+    <div className="max-w-[1440px] mx-auto px-6 md:px-14 mb-16">
+      <div className="flex flex-wrap md:flex-nowrap">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActive(active === tab.id ? null : tab.id)}
+            className={`px-6 py-4 md:px-10 md:py-6 text-sm md:text-lg font-black uppercase tracking-widest transition-colors duration-200 ${
+              active === tab.id
+                ? "bg-[#4a2c2a] text-white"
+                : "text-[#4a2c2a] hover:bg-[#4a2c2a]/10"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {active === "substrate" && (
+        <div className="bg-[#4a2c2a] text-white px-12 py-12">
+          <p className="text-xl leading-relaxed max-w-5xl mb-6">
+            Before starting, all substrates must be clean, dry and strong enough
+            to support the weight of the tiles, tile adhesive and grout. Remove
+            all dust, dirt, oil, grease and other contaminants that may affect
+            adhesion.
+          </p>
+          <p className="text-xl leading-relaxed max-w-5xl mb-6">
+            Absorbent substrates and Gypsum- or calcium-sulphate-based
+            substrates should be primed with Validus Para prior to use. See
+            Validus Para datasheet for correct application according to specific
+            substrates.
+          </p>
+          <p className="text-xl leading-relaxed max-w-5xl mb-6">
+            Adhesive is best applied in a uniform layer, using a notched trowel
+            to comb to a consistent depth, as is appropriate for the type of and
+            size of tiles to be fixed. It can be applied to a maximum bed
+            thickness of 20mm.
+          </p>
+          <p className="text-xl leading-relaxed max-w-5xl mb-6">
+            Ensuring the adhesive is still fresh, bed tiles into the adhesive,
+            ensuring full coverage of adhesive between tile and substrate. Where
+            risk is present, protect the surface from frost until the adhesive
+            is fully set.
+          </p>
+          <p className="text-xl leading-relaxed max-w-5xl">
+            Clean surplus adhesive from the tiles and joints as soon as
+            possible; set adhesive will become increasingly difficult to remove.
+            Clean tools after use with water. Product for professional use only.
+          </p>
+        </div>
+      )}
+      {active === "instruction" && (
+        <div className="bg-[#4a2c2a] text-white px-12 py-12">
+          <p className="text-xl leading-relaxed max-w-5xl mb-6">
+            This product must be in its final position before the mix has
+            started to set. Mix with clean water until you achieve a smooth and
+            lump-free homogeneous consistency.
+          </p>
+          <p className="text-xl leading-relaxed max-w-5xl">
+            Allow the product to stand for about 2 minutes, then remix. The
+            adhesive is now ready for use and must be used within 30 minutes.
+          </p>
+        </div>
+      )}
+      {active === "technical" && (
+        <div className="bg-[#4a2c2a] text-white px-12 py-12">
+          <div className="grid md:grid-cols-2 gap-10 max-w-5xl">
+            <div>
+              <p className="text-xl font-bold mb-2">Grouting:</p>
+              <p className="text-xl leading-relaxed opacity-90">
+                In ideal conditions, grouting can begin after 12 hours. Foot
+                traffic accepted after 24 hours.
+              </p>
+            </div>
+            <div>
+              <p className="text-xl font-bold mb-2">Coverage:</p>
+              <p className="text-xl leading-relaxed opacity-90">
+                Approximately 4–5 m² at 10 mm bed.
+              </p>
+            </div>
+            <div>
+              <p className="text-xl font-bold mb-2">Storage:</p>
+              <p className="text-xl leading-relaxed opacity-90">
+                Store in unopened, sealed packaging in a cool, dry place.
+              </p>
+            </div>
+            <div>
+              <p className="text-xl font-bold mb-2">Shelf Life:</p>
+              <p className="text-xl leading-relaxed opacity-90">
+                Approximately 12 months from the date printed on packaging.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function ProductDetailPage({
   params,
 }: {
@@ -256,11 +369,12 @@ export default function ProductDetailPage({
   const details = getProductDetails(fileNameOnly);
   const category = getCategory(fileNameOnly);
   const displayName = formatFileName(fileNameOnly);
+  const isPoster = fileNameOnly.toUpperCase().includes("POSTER");
 
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { token } = useAppSelector((state: RootState) => state.auth);
-  // CartContext doesn't expose setCartOpen in this project
+  const { setCartOpen } = useCart();
 
   const [isAdding, setIsAdding] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -292,13 +406,16 @@ export default function ProductDetailPage({
 
     const currentFileName = imagePath.split("/").pop() || imagePath;
     const currentSuffix = getFileNameSuffix(currentFileName).toLowerCase();
+    const currentDimension = imagePath.split("/")[0];
 
     const paths: string[] = [];
     for (const itemName of group) {
-      const candidates = allTiles.filter(
-        (t) =>
-          getVariantMatchName(t.split("/").pop() || t).toLowerCase() === itemName
-      );
+      // Filter candidates to ensure they belong to the same dimension folder
+      const candidates = allTiles.filter((t) => {
+        const tDimension = t.split("/")[0];
+        const tName = t.split("/").pop() || t;
+        return tDimension === currentDimension && getVariantMatchName(tName).toLowerCase() === itemName;
+      });
 
       if (candidates.length > 0) {
         let best = candidates[0];
@@ -379,10 +496,12 @@ export default function ProductDetailPage({
         addToCartAsync({ product_id: fileNameOnly, quantity: 1 }),
       ).unwrap();
       setIsSuccess(true);
+      setCartOpen(true);
       setTimeout(() => setIsSuccess(false), 2500);
     } catch {
       performMockAdd();
       setIsSuccess(true);
+      setCartOpen(true);
       setTimeout(() => setIsSuccess(false), 2500);
     } finally {
       setIsAdding(false);
@@ -401,6 +520,8 @@ export default function ProductDetailPage({
           ? [...new Set([...stored, fileNameOnly])]
           : stored.filter((id) => id !== fileNameOnly);
         localStorage.setItem("tb_wishlist", JSON.stringify(updated));
+        // Notify navbar to update wishlist badge count
+        window.dispatchEvent(new Event("wishlist-updated"));
       } catch {
         // ignore storage errors
       }
@@ -451,10 +572,10 @@ export default function ProductDetailPage({
               LEFT — Large Product Image
           ════════════════════════════════ */}
           <div className="w-full lg:w-[55%] xl:w-[58%] sticky top-28">
-            <div className="relative w-full aspect-square bg-[#f8f6f3] rounded-sm overflow-hidden shadow-sm flex items-center justify-center p-6 md:p-10 transition-all duration-300">
+            <div className="relative w-full aspect-square bg-transparent rounded-sm overflow-hidden flex items-center justify-center p-6 md:p-10 transition-all duration-300">
               {!imgError ? (
                 <img
-                  src={`/tiles/${displayImagePath}`}
+                  src={`/tiles/${displayImagePath.split('/').map(s => encodeURIComponent(s)).join('/')}`}
                   alt={displayName}
                   className="w-full h-full object-contain "
                   onError={() => setImgError(true)}
@@ -479,7 +600,7 @@ export default function ProductDetailPage({
               variantPaths.length > 0
             ) && !isAurlProduct && !isPaveProduct && !isSaltedProduct && (
               <div className="mt-4 flex gap-3">
-                <div className="w-20 h-20 bg-[#f8f6f3] border-2 border-[#4a2c2a] rounded-sm overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
+                <div className="w-20 h-20 bg-transparent border-2 border-[#4a2c2a] rounded-sm overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
                   <img
                     src={`/tiles/${displayImagePath}`}
                     alt="thumb"
@@ -551,7 +672,7 @@ export default function ProductDetailPage({
                         className="group flex flex-col items-center"
                       >
                         <div
-                          className={`relative w-36 h-24 md:w-40 md:h-28 bg-[#f8f6f3] border-[3px] ${isActive ? "border-black" : "border-transparent shadow-sm"} hover:border-black/40 transition-colors overflow-hidden`}
+                          className={`relative w-36 h-24 md:w-40 md:h-28 bg-transparent border-[3px] ${isActive ? "border-black" : "border-transparent"} hover:border-black/40 transition-colors overflow-hidden`}
                         >
                           <img
                             src={`/tiles/${path}`}
@@ -603,7 +724,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/grid_aurl_600x600--MATT.jpg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -626,7 +747,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/AURL GRIGIO ARCO (605x605) 16mm--MATT.jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -649,7 +770,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/AURL GRIGIO ARCO (605x605) 16mm (1).jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -672,7 +793,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/AURL GRIGIO ARCO (605x605) 16mm (2).jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -695,7 +816,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/AURL GRIGIO ARCO (605x605) 16mm (3).jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -727,7 +848,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/grid_pave_600x600--MATT.jpg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -750,7 +871,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/PAVE’ PARIS G (605x605) 16mm.jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -773,7 +894,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/PAVE’ PARIS G (605x605) 16mm (2).jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -796,7 +917,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/PAVE’ PARIS G (605x605) 16mm (3).jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -819,7 +940,7 @@ export default function ProductDetailPage({
                     className="group flex flex-col items-center cursor-pointer focus:outline-none"
                   >
                     <div
-                      className={`w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${
+                      className={`w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${
                         displayImagePath === "600x600/PAVE’ PARIS G (605x605) 16mm (4).jpeg"
                           ? "border-[#4a2c2a]"
                           : "border-transparent"
@@ -855,7 +976,7 @@ export default function ProductDetailPage({
                         className="group flex flex-col items-center"
                       >
                         <div
-                          className={`relative w-24 h-24 md:w-28 md:h-28 bg-[#f8f6f3] border-2 ${isActive ? "border-[#4a2c2a]" : "border-transparent"} hover:border-[#4a2c2a]/50 transition-colors rounded-sm overflow-hidden`}
+                          className={`relative w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${isActive ? "border-[#4a2c2a]" : "border-transparent"} hover:border-[#4a2c2a]/50 transition-colors rounded-sm overflow-hidden`}
                         >
                           <img
                             src={`/tiles/${path}`}
@@ -1145,248 +1266,212 @@ export default function ProductDetailPage({
               </>
             )}
 
-            {/* ── Pricing ── */}
-            <div className="mb-8">
-              <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">
-                Price
-              </p>
-              <div className="flex items-baseline gap-3">
-                <span className="text-4xl font-bold text-[#4a2c2a]">
-                  £{details.price.toFixed(2)}
-                </span>
-                {!details.isAccessory && (
-                  <span className="text-xl line-through text-gray-300">
-                    £{(details.price + 5).toFixed(2)}
-                  </span>
-                )}
-                <span className="text-[11px] text-gray-400 font-medium">
-                  / {details.unit}
-                </span>
-              </div>
-              {!details.isAccessory && (
-                <div className="mt-2 inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full">
-                  <span className="text-[10px] font-bold uppercase tracking-wider">
-                    Save £{(5).toFixed(2)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* ── Action Buttons ── */}
-            <div className="flex flex-col gap-4 mb-6">
-              <button
-                onClick={handleAddToCart}
-                disabled={isAdding}
-                className={`w-full py-5 text-[11px] font-black uppercase tracking-[0.25em] rounded-sm border-2 transition-all duration-300 flex items-center justify-center gap-3
-                  ${
-                    isSuccess
-                      ? "bg-green-600 border-green-600 text-white shadow-green-200"
-                      : "bg-white border-[#4a2c2a] text-[#4a2c2a] hover:bg-[#4a2c2a] hover:text-white active:scale-[0.99]"
-                  } disabled:opacity-70`}
-              >
-                {isAdding ? (
-                  <>
-                    <svg
-                      className="w-4 h-4 animate-spin"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-                    </svg>
-                    Adding...
-                  </>
-                ) : isSuccess ? (
-                  <>
-                    <svg
-                      className="w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                    >
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                    Added to Cart
-                  </>
+            {/* ── Pricing & Cart Section ── */}
+            {details.isAccessory || isPoster || !(dimension.toLowerCase().includes("600x600") || dimension.toLowerCase().includes("600x1200")) ? (
+              <>
+                {/* ── Old Pricing ── */}
+                {isPoster ? (
+                  <div className="mb-8">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">
+                      Price
+                    </p>
+                    <p className="text-3xl font-bold text-[#4a2c2a]">POA</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Please enquire for pricing
+                    </p>
+                  </div>
                 ) : (
-                  <>
-                    <svg
-                      className="w-4 h-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />
-                    </svg>
-                    Add to Cart
-                  </>
+                  <div className="mb-8">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">
+                      Price
+                    </p>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-4xl font-bold text-[#4a2c2a]">
+                        £{details.price.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
                 )}
-              </button>
 
-              {/* Wishlist */}
-              <button
-                onClick={handleWishlist}
-                className={`w-full py-5 text-[11px] font-black uppercase tracking-[0.25em] rounded-sm border-2 transition-all duration-300 flex items-center justify-center gap-3
-                  ${
-                    isWishlisted
-                      ? "bg-rose-50 border-rose-400 text-rose-600"
-                      : "bg-white border-[#4a2c2a] text-[#4a2c2a] hover:bg-[#4a2c2a] hover:text-white"
-                  }`}
-              >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill={isWishlisted ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
-                </svg>
-                {isWishlisted ? "Saved to Wishlist" : "Add to Wishlist"}
-              </button>
-            </div>
+                {/* ── Add to Cart / Buy Now ── */}
+                <div className="flex flex-col gap-3 mb-8">
+                  {isPoster ? (
+                    <Link
+                      href="/contact"
+                      className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] transition-all duration-300 flex items-center justify-center gap-3 bg-[#222] text-white hover:bg-black shadow-lg"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                        <polyline points="22,6 12,13 2,6" />
+                      </svg>
+                      Inquire for Price
+                    </Link>
+                  ) : (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleAddToCart}
+                        disabled={isAdding}
+                        className={`flex-1 py-4 text-[11px] font-black uppercase tracking-[0.25em] transition-all duration-300 flex items-center justify-center gap-3
+                          ${isSuccess
+                            ? "bg-green-600 text-white"
+                            : "bg-[#4a2c2a] text-white hover:bg-[#3a1c1a] active:scale-[0.98]"
+                          } disabled:opacity-60 disabled:cursor-not-allowed`}
+                      >
+                        {isAdding ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Adding...
+                          </>
+                        ) : isSuccess ? (
+                          "Added to Cart"
+                        ) : (
+                          "Add to Cart"
+                        )}
+                      </button>
+                    </div>
+                  )}
 
-            {/* ── Share Button ── */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-[#4a2c2a] transition-colors px-4 py-2.5 border border-gray-100 rounded-full hover:border-[#4a2c2a]"
-              >
-                <svg
-                  className="w-3.5 h-3.5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                >
-                  <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
-                </svg>
-                Share
-              </button>
-              {shareMsg && (
-                <span className="text-[10px] font-bold text-green-600 tracking-wide animate-pulse">
-                  {shareMsg}
-                </span>
-              )}
-            </div>
+                  {/* Wishlist + Share */}
+                  <div className="flex gap-3 mt-2">
+                    <button
+                      onClick={handleWishlist}
+                      className={`flex-1 py-3.5 border text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all duration-300
+                        ${isWishlisted
+                          ? "border-[#4a2c2a] bg-[#4a2c2a] text-white"
+                          : "border-gray-300 text-gray-600 hover:border-[#4a2c2a] hover:text-[#4a2c2a]"
+                        }`}
+                    >
+                      {isWishlisted ? "Wishlisted" : "Wishlist"}
+                    </button>
+                    <button
+                      onClick={handleShare}
+                      className="flex-1 py-3.5 border border-gray-300 text-gray-600 text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:border-[#4a2c2a] hover:text-[#4a2c2a] transition-all duration-300"
+                    >
+                      {shareMsg || "Share"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mb-4">
+                  <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">
+                    Price
+                  </p>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-4xl font-bold text-[#4a2c2a]">
+                      £{details.price.toFixed(2)}
+                    </span>
+                    <span className="text-xl line-through text-gray-300">
+                      £{(details.price + 5).toFixed(2)}
+                    </span>
+                    <span className="text-[11px] text-gray-400 font-medium">
+                      / m²
+                    </span>
+                  </div>
+                  <div className="mt-2 inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full">
+                    <span className="text-[10px] font-bold uppercase tracking-wider">
+                      Save £{(5).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
 
-            {/* ── Delivery Info ── */}
-            <div className="mt-10 pt-8 border-t border-gray-100 space-y-5">
-              <div className="flex items-center gap-4 text-[#4a2c2a]">
-                <svg
-                  className="w-5 h-5 flex-shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="1" y="3" width="15" height="13" rx="1" />
-                  <path d="M16 8h4l3 5v3h-7V8zM5.5 21a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM19.5 21a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
-                </svg>
-                <span className="text-sm font-semibold">
-                  Free delivery on orders over 500 sqm
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-[#4a2c2a]">
-                <svg
-                  className="w-5 h-5 flex-shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm font-semibold">
-                  Premium quality guaranteed
-                </span>
-              </div>
-              <div className="flex items-center gap-4 text-[#4a2c2a]">
-                <svg
-                  className="w-5 h-5 flex-shrink-0"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                </svg>
-                <span className="text-sm font-semibold">Secure checkout</span>
-              </div>
-            </div>
+                <TilePackCalculator
+                  productId={fileNameOnly}
+                  productName={displayName}
+                  pricePerM2={details.price}
+                  size={dimension}
+                  image={`/tiles/${displayImagePath}`}
+                  token={token}
+                  router={router}
+                />
+
+                <div className="flex gap-3 mb-8">
+                  <button
+                    onClick={handleWishlist}
+                    className={`flex-1 py-3.5 border text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all duration-300
+                      ${isWishlisted
+                        ? "border-[#4a2c2a] bg-[#4a2c2a] text-white"
+                        : "border-gray-300 text-gray-600 hover:border-[#4a2c2a] hover:text-[#4a2c2a]"
+                      }`}
+                  >
+                    {isWishlisted ? "Wishlisted" : "Wishlist"}
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    className="flex-1 py-3.5 border border-gray-300 text-gray-600 text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-2 hover:border-[#4a2c2a] hover:text-[#4a2c2a] transition-all duration-300"
+                  >
+                    {shareMsg || "Share"}
+                  </button>
+                </div>
+              </>
+            )}
+
           </div>
         </div>
-      </main>
+            </main>
 
+{/* Bottom Navigation */}
+<div className="max-w-[1440px] mx-auto px-6 md:px-14 border-t border-gray-100 pt-10 flex items-center justify-between">
+  <Link
+    href="/products"
+    className="inline-flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-[#4a2c2a] hover:gap-5 transition-all duration-300"
+  >
+    <svg
+      className="w-4 h-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+    >
+      <path d="M19 12H5M12 19l-7-7 7-7" />
+    </svg>
+    Back to Collection
+  </Link>
 
+  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
+    Premium · Architectural · Surfaces
+  </p>
+</div>
 
-
-
-      {/* ── Back to Collection ── */}
-      <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16">
-        <div className="border-t border-gray-100 pt-10 flex items-center justify-between">
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-[#4a2c2a] hover:gap-5 transition-all duration-300"
-          >
-            <svg
-              className="w-4 h-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            Back to Collection
-          </Link>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
-            Premium · Architectural · Surfaces
-          </p>
-        </div>
-      </div>
-
-      {/* Horizontal preview image for AURL product */}
-      {isAurlProduct && (
-        <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16">
-          <div className="w-full bg-[#f8f6f3] rounded-sm overflow-hidden shadow-sm flex items-center justify-center p-4">
-            <img
-              src="/tiles/600x600/AURL GRIGIO ARCO (605x605) 16mm (5)--MATT.jpeg"
-              alt="AURL GRIGIO ARCO Horizontal Preview"
-              className="w-full h-auto object-contain max-h-[500px]"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Horizontal preview image for Pave product */}
-      {isPaveProduct && (
-        <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16">
-          <div className="w-full bg-[#f8f6f3] rounded-sm overflow-hidden shadow-sm flex items-center justify-center p-4">
-            <img
-              src="/tiles/600x600/PAVE’ PARIS G (605x605) 16mm (1).jpeg"
-              alt="PAVE’ PARIS Horizontal Preview"
-              className="w-full h-auto object-contain max-h-[500px]"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Horizontal preview image for Salted Concreto product */}
-      {isSaltedProduct && (
-        <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16">
-          <div className="w-full bg-[#f8f6f3] rounded-sm overflow-hidden shadow-sm flex items-center justify-center p-4">
-            <img
-              src="/tiles/600x600/Salted concreto crema 600x900 x 20mm (1).jpeg"
-              alt="Salted Concreto Horizontal Preview"
-              className="w-full h-auto object-contain max-h-[500px]"
-            />
-          </div>
-        </div>
-      )}
+{/* Horizontal preview image for AURL product */}
+{isAurlProduct && (
+  <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16 pt-10">
+    <div className="w-full bg-transparent rounded-sm overflow-hidden flex items-center justify-center p-4">
+      <img
+        src={"/tiles/" + "600x600/AURL GRIGIO ARCO (605x605) 16mm (5)--MATT.jpeg".split('/').map(s => encodeURIComponent(s)).join('/')}
+        alt="AURL GRIGIO ARCO Horizontal Preview"
+        className="w-full h-auto object-contain max-h-[500px]"
+      />
     </div>
-  );
+  </div>
+)}
+
+{/* Horizontal preview image for Pave product */}
+{isPaveProduct && (
+  <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16 pt-10">
+    <div className="w-full bg-transparent rounded-sm overflow-hidden flex items-center justify-center p-4">
+      <img
+        src={"/tiles/" + "600x600/PAVE' PARIS G (605x605) 16mm (1).jpeg".split('/').map(s => encodeURIComponent(s)).join('/')}
+        alt="PAVE PARIS Horizontal Preview"
+        className="w-full h-auto object-contain max-h-[500px]"
+      />
+    </div>
+  </div>
+)}
+
+{/* Horizontal preview image for Salted Concreto product */}
+{isSaltedProduct && (
+  <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16 pt-10">
+    <div className="w-full bg-transparent rounded-sm overflow-hidden flex items-center justify-center p-4">
+      <img
+        src={"/tiles/" + "600x600/Salted concreto crema 600x900 x 20mm (1).jpeg".split('/').map(s => encodeURIComponent(s)).join('/')}
+        alt="Salted Concreto Horizontal Preview"
+        className="w-full h-auto object-contain max-h-[500px]"
+      />
+    </div>
+  </div>
+)}
+</div>
+);
 }

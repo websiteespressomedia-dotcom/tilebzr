@@ -6,6 +6,7 @@ import { ReduxProvider } from "@/components/Provider";
 import LayoutWrapper from "@/components/LayoutWrapper";
 import { Toaster } from "react-hot-toast";
 import AuthProvider from "@/components/AuthProvider";
+import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -64,17 +65,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body cz-shortcut-listen="true">
-        <Toaster position="bottom-right" reverseOrder={false} />
-        <ReduxProvider>
-          <CartProvider>
-            <AuthProvider>
-            {/* The Wrapper handles the logic of what to show */}
-            <LayoutWrapper>
-              {children}
-            </LayoutWrapper>
-            </AuthProvider>
-          </CartProvider>
-        </ReduxProvider>
+        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
+          <Toaster position="bottom-right" reverseOrder={false} />
+          <ReduxProvider>
+            <CartProvider>
+              <AuthProvider>
+              {/* The Wrapper handles the logic of what to show */}
+              <LayoutWrapper>
+                {children}
+              </LayoutWrapper>
+              </AuthProvider>
+            </CartProvider>
+          </ReduxProvider>
+        </GoogleOAuthProvider>
       </body>
     </html>
   );

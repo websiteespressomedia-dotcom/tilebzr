@@ -28,6 +28,7 @@ interface DashboardStats {
   totalRevenue: number;
   totalOrders: number;
   pendingOrders: number;
+  shippedOrders: number;
   totalUsers: number;
   totalProducts: number;
 }
@@ -43,6 +44,25 @@ export interface Inquiry {
   created_at: string;
 }
 
+export interface AdminAccount {
+  id: string;
+  email: string;
+  full_name: string;
+  status: string;
+  last_login: string | null;
+  last_logout: string | null;
+}
+
+export interface AdminLog {
+  id: string;
+  admin_email: string;
+  admin_name: string;
+  action: string;
+  details: string;
+  page: string;
+  created_at: string;
+}
+
 interface AdminState {
   customers: User[];
   selectedUser: User | null;
@@ -51,6 +71,8 @@ interface AdminState {
   error: string | null;
   newsletter?: { items: any[]; total: number } | null;
   inquiries: Inquiry[];
+  admins: AdminAccount[];
+  adminLogs: AdminLog[];
 }
 
 const initialState: AdminState = {
@@ -58,6 +80,8 @@ const initialState: AdminState = {
   customers: [],
   selectedUser: null,
   inquiries: [],
+  admins: [],
+  adminLogs: [],
   loading: false,
   error: null,
 };
@@ -142,6 +166,32 @@ export const fetchProjectInquiries = createAsyncThunk<Inquiry[], void, { rejectV
   }
 );
 
+export const fetchAdminAccounts = createAsyncThunk<AdminAccount[], void, { rejectValue: string }>(
+  'admin/fetchAccounts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/admin/system-accounts');
+      return response.data;
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message: string }>;
+      return rejectWithValue(error.response?.data?.message || 'Failed to load admin accounts');
+    }
+  }
+);
+
+export const fetchAdminLogs = createAsyncThunk<AdminLog[], void, { rejectValue: string }>(
+  'admin/fetchLogs',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/api/admin/system-accounts/logs');
+      return response.data;
+    } catch (err: unknown) {
+      const error = err as AxiosError<{ message: string }>;
+      return rejectWithValue(error.response?.data?.message || 'Failed to load admin activity logs');
+    }
+  }
+);
+
 const adminSlice = createSlice({
   name: 'admin',
   initialState,
@@ -221,6 +271,30 @@ const adminSlice = createSlice({
       state.inquiries = action.payload;
     })
     .addCase(fetchProjectInquiries.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    })
+    .addCase(fetchAdminAccounts.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    })
+    .addCase(fetchAdminAccounts.fulfilled, (state, action) => {
+      state.loading = false;
+      state.admins = action.payload;
+    })
+    .addCase(fetchAdminAccounts.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    })
+    .addCase(fetchAdminLogs.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    })
+    .addCase(fetchAdminLogs.fulfilled, (state, action) => {
+      state.loading = false;
+      state.adminLogs = action.payload;
+    })
+    .addCase(fetchAdminLogs.rejected, (state, action) => {
       state.loading = false;
       state.error = action.payload as string;
     });

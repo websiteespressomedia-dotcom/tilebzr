@@ -32,6 +32,8 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   isInitialized: boolean;
+  isOtpRequired: boolean;
+  pendingUserEmail: string | null;
 }
 interface LoginCredentials {
   email: string;
@@ -45,54 +47,107 @@ interface RegisterData {
 
 const initialState: AuthState = {
   user: null,
-  token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
+  token: typeof window !== "undefined" ? sessionStorage.getItem("token") || localStorage.getItem("token") : null,
   loading: false,
   error: null,
   isInitialized: false,
+  isOtpRequired: false,
+  pendingUserEmail: null,
 };
 
 // Login Thunk
 export const loginUser = createAsyncThunk(
-  "auth/login",
-  async (credentials: LoginCredentials, { rejectWithValue }) => {
-    try {
-      const response = await api.post("/api/auth/login", credentials);
+  'auth/loginUser',
 
-      // Axios stores the data in response.data
-      localStorage.setItem("token", response.data.token);
+  async (userData: any, thunkAPI) => {
+
+    try {
+
+      const response = await api.post(
+        '/api/auth/login',
+        userData
+      );
+
       return response.data;
-    } catch (err: unknown) {
-      const error = err as AxiosError<{ message: string }>;
-      return rejectWithValue(error.response?.data?.message || "Login failed");
+
+    } catch (error: any) {
+
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message ||
+        'Login failed'
+      );
     }
-  },
+  }
 );
 
 // Register Thunk
 export const registerUser = createAsyncThunk(
-  "auth/register",
-  async (userData: RegisterData, { rejectWithValue }) => {
-    try {
-      // Axios call to your Express backend
-      const response = await api.post("/api/auth/register", userData);
+  'auth/registerUser',
 
-      // Usually, registration doesn't log the user in immediately,
-      // but if your backend returns a token, you can save it here:
-      if (response.data.token) {
-        localStorage.setItem("token", response.data.token);
-      }
+  async (userData: any, thunkAPI) => {
+
+    try {
+
+      const response = await api.post(
+        '/api/auth/register',
+        userData
+      );
 
       return response.data;
-    } catch (err: unknown) {
-      // 3. Typed Error Handling (Fixes "Unexpected any")
-      const error = err as AxiosError<{ message: string }>;
 
-      // This pulls the error message directly from your Express response (e.g., "User already exists")
-      return rejectWithValue(
-        error.response?.data?.message || "Registration failed",
+    } catch (error: any) {
+
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message ||
+        'Registration failed'
       );
     }
-  },
+  }
+);
+
+// Google Login Thunk
+export const googleLoginUser = createAsyncThunk(
+  'auth/googleLoginUser',
+  async (token: string, thunkAPI) => {
+    try {
+      const response = await api.post('/api/auth/google-login', { token });
+      return response.data;
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || 'Google login failed'
+      );
+    }
+  }
+);
+
+// Google Register Thunk
+export const googleRegisterUser = createAsyncThunk(
+  'auth/googleRegisterUser',
+  async (data: { token: string; phone_number: string }, thunkAPI) => {
+    try {
+      const response = await api.post('/api/auth/google-register', data);
+      return response.data;
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || 'Google registration failed'
+      );
+    }
+  }
+);
+
+// Verify OTP Thunk
+export const verifyOtp = createAsyncThunk(
+  'auth/verifyOtp',
+  async (data: { email: string; otp: string }, thunkAPI) => {
+    try {
+      const response = await api.post('/api/auth/verify-otp', data);
+      return response.data;
+    } catch (error: any) {
+      return thunkAPI.rejectWithValue(
+        error.response?.data?.message || 'OTP verification failed'
+      );
+    }
+  }
 );
 
 export const getProfile = createAsyncThunk(
@@ -141,10 +196,20 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isInitialized = true;
-      if (typeof window !== "undefined") localStorage.clear();
+      if (typeof window !== "undefined") {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
     },
     clearError: (state) => {
       state.error = null;
+    },
+    loginSuccess: (state, action) => {
+      state.user = action.payload.user;
+      state.token = action.payload.token;
+      state.loading = false;
+      state.error = null;
+      state.isInitialized = true;
     },
   },
   extraReducers: (builder) => {
@@ -155,13 +220,87 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-
-  //       localStorage.setItem("token", action.payload.token);
-  // localStorage.setItem("user", JSON.stringify(action.payload.user));
+        if (action.payload.status === 'OTP_REQUIRED') {
+          state.isOtpRequired = true;
+          state.pendingUserEmail = action.payload.email;
+        } else {
+          state.user = action.payload.user;
+          state.token = action.payload.token;
+          if (typeof window !== "undefined") {
+            if (action.payload.user?.role === 'admin') {
+              sessionStorage.setItem("token", action.payload.token);
+              sessionStorage.setItem("user", JSON.stringify(action.payload.user));
+            } else {
+              localStorage.setItem("token", action.payload.token);
+              localStorage.setItem("user", JSON.stringify(action.payload.user));
+            }
+          }
+        }
       })
       .addCase(loginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(googleLoginUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(googleLoginUser.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.status === 'OTP_REQUIRED') {
+          state.isOtpRequired = true;
+          state.pendingUserEmail = action.payload.email;
+        } else {
+          state.user = action.payload.user;
+          state.token = action.payload.token;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("token", action.payload.token);
+            localStorage.setItem("user", JSON.stringify(action.payload.user));
+          }
+        }
+      })
+      .addCase(googleLoginUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(verifyOtp.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyOtp.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isOtpRequired = false;
+        state.pendingUserEmail = null;
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        if (typeof window !== "undefined") {
+          localStorage.setItem("token", action.payload.token);
+          localStorage.setItem("user", JSON.stringify(action.payload.user));
+        }
+      })
+      .addCase(verifyOtp.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      .addCase(googleRegisterUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(googleRegisterUser.fulfilled, (state, action) => {
+        state.loading = false;
+        if (action.payload.status === 'OTP_REQUIRED') {
+          state.isOtpRequired = true;
+          state.pendingUserEmail = action.payload.email;
+        } else {
+          state.user = action.payload.user;
+          state.token = action.payload.token;
+          if (typeof window !== "undefined" && action.payload.token) {
+            localStorage.setItem("token", action.payload.token);
+            localStorage.setItem("user", JSON.stringify(action.payload.user));
+          }
+        }
+      })
+      .addCase(googleRegisterUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
@@ -171,8 +310,17 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token || state.token;
+        if (action.payload.status === 'OTP_REQUIRED') {
+          state.isOtpRequired = true;
+          state.pendingUserEmail = action.payload.email;
+        } else {
+          state.user = action.payload.user;
+          state.token = action.payload.token || state.token;
+          if (typeof window !== "undefined" && action.payload.token) {
+            localStorage.setItem("token", action.payload.token);
+            localStorage.setItem("user", JSON.stringify(action.payload.user));
+          }
+        }
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
@@ -200,5 +348,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, loginSuccess } = authSlice.actions;
 export default authSlice.reducer;

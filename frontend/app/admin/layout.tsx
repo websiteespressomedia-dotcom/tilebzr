@@ -42,6 +42,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { logout } from "@/store/slices/authSlice";
+import api from "@/lib/axios";
 import {
   LayoutDashboard,
   Package,
@@ -50,6 +51,7 @@ import {
   Mail,
   LogOut,
   ArrowLeft,
+  Shield,
 } from "lucide-react";
 import { fetchDashboardStats, fetchAllCustomers, fetchProjectInquiries, clearAdminData } from "@/store/slices/adminSlice";
 import { fetchAdminProducts, clearProductData } from "@/store/slices/productSlice";
@@ -60,7 +62,8 @@ const navLinks = [
   { name: "Products", href: "/admin/products", icon: Package },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Inquiries", href: "/admin/inquiries", icon: Mail },
-  { name: "Customers", href: "/admin/customers", icon: Users },
+  { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Admins", href: "/admin/admins", icon: Shield },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -69,7 +72,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    if (user?.email) {
+      try {
+        await api.post("/api/auth/logout", { email: user.email });
+      } catch (err) {
+        console.error("Failed to track logout:", err);
+      }
+    }
     // 1. Clear Redux state across all admin-related modules
     dispatch(logout());
     dispatch(clearAdminData());

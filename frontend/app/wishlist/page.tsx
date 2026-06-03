@@ -13,6 +13,17 @@ import { FiShoppingCart, FiChevronLeft } from "react-icons/fi";
 import { Heart } from "lucide-react";
 import { getAllTilePaths } from "@/app/actions";
 
+type WishlistProduct = {
+  id: string;
+  name: string;
+  slug: string;
+  image: string;
+  price: number;
+  discount_price: number;
+  category: string;
+  size: string;
+};
+
 const getProductDetails = (fileName: string) => {
   const upper = fileName.toUpperCase();
   if (upper.includes("TRIM")) return { price: 8, isAccessory: true };
@@ -20,6 +31,13 @@ const getProductDetails = (fileName: string) => {
   if (upper.includes("WEDGE")) return { price: 6, isAccessory: true };
   if (upper.includes("ADHESIVE") || upper.includes("GLUE")) return { price: 12, isAccessory: true };
   if (upper.includes("MATTING") || upper.includes("LEVEL")) return { price: 6, isAccessory: true };
+  
+  // New Arrivals & Outdoor tiles are priced at £18
+  if (upper.includes("AURL GRIGIO") || upper.includes("PAVE") || upper.includes("SALT CONCRETO") || upper.includes("SALTED CONCRETO") || upper.includes("OUTDOOR")) {
+    return { price: 18, isAccessory: false };
+  }
+  
+  // All other tiles default to £15
   return { price: 15, isAccessory: false };
 };
 
@@ -75,9 +93,14 @@ export default function WishlistPage() {
     const updated = wishlistSlugs.filter((s) => s !== slug);
     localStorage.setItem("tb_wishlist", JSON.stringify(updated));
     setWishlistSlugs(updated);
+    // Notify navbar to update wishlist badge count
+    window.dispatchEvent(new Event("wishlist-updated"));
   };
 
-  const performMockAdd = (fileNameOnly: string, details: any) => {
+  const performMockAdd = (
+  fileNameOnly: string,
+  details: { price: number; isAccessory: boolean }
+) => {
     dispatch(
       mockAddToCart({
         id: Math.random().toString(),
@@ -98,7 +121,7 @@ export default function WishlistPage() {
   };
 
   // Add item to cart
-  const handleAddToCart = async (product: any) => {
+  const handleAddToCart = async (product: WishlistProduct) => {
     if (!token) {
       router.push("/login");
       return;
@@ -125,6 +148,8 @@ export default function WishlistPage() {
       const fullPath = allTiles.find((t) => (t.split("/").pop() || t) === slug);
       if (!fullPath) return null;
       
+      if (!fullPath) return null;
+
       const fileNameOnly = slug;
       const details = getProductDetails(fileNameOnly);
       
@@ -134,11 +159,11 @@ export default function WishlistPage() {
         slug: fileNameOnly,
         image: `/tiles/${fullPath}`,
         price: details.price,
-        discount_price: 0,
+        discount_price: details.isAccessory ? 0 : details.price + 5,
         category: getCategory(fileNameOnly),
         size: fullPath.split("/")[0] || "N/A",
       };
-    }).filter(Boolean) as any[];
+    }).filter(Boolean) as WishlistProduct[];
   }, [wishlistSlugs, allTiles]);
 
   return (
@@ -211,7 +236,7 @@ export default function WishlistPage() {
                       className="relative w-full aspect-[5/4] bg-[#fbfbfb] flex items-center justify-center p-6 mb-5 overflow-hidden group/image cursor-pointer border border-gray-50 hover:border-gray-100 transition-colors"
                     >
                       <Image
-                        src={imagePath}
+                        src={imagePath.split('/').map(s => encodeURIComponent(s)).join('/')}
                         alt={product.name}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"

@@ -47,8 +47,10 @@ const getProductDetails = (fileName: string) => {
   if (upper.includes("SPACER")) return { price: 6, unit: "+vat/bag", isAccessory: true };
   if (upper.includes("WEDGE")) return { price: 6, unit: "+vat/bag", isAccessory: true };
   if (upper.includes("ADHESIVE") || upper.includes("GLUE")) return { price: 12, unit: "+vat/bag", isAccessory: true };
-  if (upper.includes("MATTING")) return { price: 6, unit: "+vat/sqm", isAccessory: true }; // Replace 30 with actual price
-   if (upper.includes("AURL GRIGIO") || upper.includes("PAVE") || upper.includes("SALT CONCRETO") || upper.includes("SALTED CONCRETO")) return { price: 18, unit: "m²", isAccessory: false };
+  if (upper.includes("MATTING")) return { price: 6, unit: "+vat/sqm", isAccessory: true };
+  // New Arrivals & Outdoor tiles are priced at £18
+  if (upper.includes("AURL GRIGIO") || upper.includes("PAVE") || upper.includes("SALT CONCRETO") || upper.includes("SALTED CONCRETO") || upper.includes("OUTDOOR")) return { price: 18, unit: "m²", isAccessory: false };
+  // All other tiles default to £15
   return { price: 15, unit: "m²", isAccessory: false };
 };
 
@@ -363,7 +365,7 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
               {/* Boxed Aspect Ratio like the original design */}
               <Link href={`/products/${encodeURIComponent(imageName)}`} className="relative w-full aspect-[5/4] bg-[#fbfbfb] flex items-center justify-center p-6 mb-5 overflow-hidden group/image cursor-pointer">
                 <Image
-                  src={`/tiles/${imageName}`}
+                  src={`/tiles/${imageName.split('/').map(s => encodeURIComponent(s)).join('/')}`}
                   alt={fileNameOnly}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
@@ -414,12 +416,12 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
 
                 <div className="mt-auto">
                   {isPoster ? (
-                    <button
-                      disabled={true}
-                      className="w-full bg-gray-100 text-gray-400 py-3 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
+                    <Link
+                      href="/contact"
+                      className="w-full flex justify-center bg-[#222] text-white hover:bg-black py-3 text-[10px] font-bold uppercase tracking-widest transition-colors"
                     >
                       Inquire for Price
-                    </button>
+                    </Link>
                   ) : (
                     <AddToCartButton
                       product={{

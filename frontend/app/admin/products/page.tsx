@@ -12,7 +12,8 @@ import {
   IoGridOutline,
   IoListOutline
 } from "react-icons/io5";
-import { fetchAdminProducts } from "@/store/slices/productSlice"; 
+import { fetchAdminProducts, updateProductAsync } from "@/store/slices/productSlice";
+import toast from "react-hot-toast";
 
 const getProductImagePath = (product: any) => {
   if (!product || !product.image) return "/placeholder-tile.jpg";
@@ -57,13 +58,70 @@ export default function AdminProductsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // --- STOCK EDIT STATE ---
+  const [editingStockId, setEditingStockId] = useState<string | null>(null);
+  const [editingStockValue, setEditingStockValue] = useState<string>("");
+  const [isUpdatingStock, setIsUpdatingStock] = useState(false);
+
+  const handleStartEdit = (productId: string, currentStock: number) => {
+    setEditingStockId(productId);
+    setEditingStockValue(currentStock.toString());
+  };
+
+  const handleCancelEdit = () => {
+    setEditingStockId(null);
+    setEditingStockValue("");
+  };
+
+  const handleSaveStock = async (productId: string) => {
+    if (isUpdatingStock) return;
+    
+    const newStock = parseInt(editingStockValue);
+    if (isNaN(newStock) || newStock < 0) {
+      toast.error("Please enter a valid stock quantity");
+      return;
+    }
+
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    if (product.stock === newStock) {
+      setEditingStockId(null);
+      return;
+    }
+
+    setIsUpdatingStock(true);
+    const data = new FormData();
+    data.append("stock", newStock.toString());
+    
+    // Pass other fields to preserve them
+    data.append("name", product.name);
+    data.append("price", product.price.toString());
+    data.append("size", product.size);
+    data.append("finish", product.finish);
+    data.append("thickness", product.thickness || "");
+    data.append("material", product.material || "");
+    data.append("category", product.category || "");
+
+    try {
+      await dispatch(updateProductAsync({ id: productId, data })).unwrap();
+      toast.success("Stock updated successfully");
+    } catch (err) {
+      toast.error("Failed to update stock");
+      console.error(err);
+    } finally {
+      setIsUpdatingStock(false);
+      setEditingStockId(null);
+    }
+  };
+
   useEffect(() => {
     dispatch(fetchAdminProducts());
   }, [dispatch]);
 
   // Derived filter options
   const finishes = ["All", ...Array.from(new Set(products.map(p => p.finish).filter(Boolean)))];
-  const sizes = ["All", ...Array.from(new Set(products.map(p => p.size).filter(Boolean)))];
+  const sizes = ["All", "600x600", "600x1200", "Accessories"];
 
   useEffect(() => {
     setCurrentPage(1);
@@ -74,7 +132,10 @@ export default function AdminProductsPage() {
     .filter((p) => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFinish = filterFinish === "All" || p.finish === filterFinish;
-      const matchesSize = filterSize === "All" || p.size === filterSize;
+      const matchesSize = filterSize === "All" || 
+        (filterSize === "Accessories" 
+          ? p.category?.toLowerCase() === "accessories" 
+          : p.size === filterSize);
       const matchesStatus = filterStatus === "All" || 
         (filterStatus === "Active" ? p.is_active : !p.is_active);
       
@@ -147,7 +208,7 @@ export default function AdminProductsPage() {
           onChange={(e) => setFilterSize(e.target.value)}
           className="px-4 py-2.5 bg-white border border-gray-100 outline-none text-[10px] font-bold uppercase tracking-widest text-gray-600 focus:border-[#4a2c2a] transition-all"
         >
-          {sizes.map(s => <option key={s} value={s}>{s === "All" ? "All Dimensions" : s}</option>)}
+          {sizes.map(s => <option key={s} value={s}>{s === "All" ? "All Products" : s}</option>)}
         </select>
 
         <select 
@@ -192,6 +253,7 @@ export default function AdminProductsPage() {
                 <th className="text-left pb-4">Identity</th>
                 <th className="text-left pb-4">Dimensions</th>
                 <th className="text-left pb-4">Total Value</th>
+                <th className="text-left pb-4">Inventory</th>
                 <th className="text-left pb-4">Status</th>
                 <th className="text-right pb-4 pr-4">Actions</th>
               </tr>
@@ -217,6 +279,41 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{product.size}</td>
                   <td className="text-[12px] font-black text-[#4a2c2a]">£ {product.price.toFixed(2)}</td>
+                  <td>
+                    {editingStockId === product.id ? (
+                      <input
+                        type="number"
+                        value={editingStockValue}
+                        onChange={(e) => setEditingStockValue(e.target.value)}
+                        onBlur={() => handleSaveStock(product.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveStock(product.id);
+                          if (e.key === "Escape") handleCancelEdit();
+                        }}
+                        className="w-16 px-2 py-1 border border-[#4a2c2a] outline-none text-xs rounded-sm focus:ring-1 focus:ring-[#4a2c2a] font-bold"
+                        autoFocus
+                      />
+                    ) : (
+                      <div 
+                        onClick={() => handleStartEdit(product.id, product.stock)}
+                        className="cursor-pointer hover:bg-gray-100 px-2 py-1 rounded-sm transition-all w-fit flex items-center gap-1 group/stock"
+                        title="Click to edit stock inline"
+                      >
+                        <span className={`text-[10px] font-bold ${
+                          product.stock > 10 
+                            ? 'text-green-600' 
+                            : product.stock > 0 
+                              ? 'text-amber-500' 
+                              : 'text-red-500 font-extrabold'
+                        }`}>
+                          {product.stock}
+                        </span>
+                        <span className="text-[8px] text-gray-300 opacity-0 group-hover/stock:opacity-100 transition-opacity ml-1">
+                          ✏️
+                        </span>
+                      </div>
+                    )}
+                  </td>
                   <td>
                     <div className="flex items-center gap-2">
                       <div className={`w-1.5 h-1.5 rounded-full ${product.is_active ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]' : 'bg-gray-300'}`}></div>

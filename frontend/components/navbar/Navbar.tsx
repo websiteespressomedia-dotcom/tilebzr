@@ -62,24 +62,72 @@
 // export default Navbar;
 
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { FiShoppingCart, FiUser, FiHeart } from "react-icons/fi";
 import CartDrawer from "../common/CartDrawer";
 import { useCart } from "@/context/CartContext";
 import { useAppSelector } from "@/store/hooks";
 
 const Navbar = () => {
+  const pathname = usePathname();
   const { isCartOpen, setCartOpen } = useCart();
   const cartItems = useAppSelector((state) => state.cart.items);
   const { user } = useAppSelector((state) => state.auth);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [wishlistCount, setWishlistCount] = useState(0);
+
+const readWishlistCount = useCallback(() => {
+  if (typeof window === "undefined") return;
+
+  try {
+    const stored = JSON.parse(
+      localStorage.getItem("tb_wishlist") || "[]"
+    ) as string[];
+
+    // Prevent unnecessary state updates
+    setWishlistCount((prev) => {
+      return prev !== stored.length ? stored.length : prev;
+    });
+  } catch {
+    setWishlistCount(0);
+  }
+}, []);
+
+useEffect(() => {
+  // Run after render
+  const timeout = setTimeout(() => {
+    readWishlistCount();
+  }, 0);
+
+  const handleStorage = (e: StorageEvent) => {
+    if (e.key === "tb_wishlist") {
+      readWishlistCount();
+    }
+  };
+
+  const handleCustom = () => {
+    readWishlistCount();
+  };
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener("wishlist-updated", handleCustom);
+
+  return () => {
+    clearTimeout(timeout);
+
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener("wishlist-updated", handleCustom);
+  };
+}, [readWishlistCount]);
 
   const navLinks = [
     { name: "Home", href: "/" },
     { name: "About Us", href: "/about" },
     { name: "Products", href: "/products" },
+    { name: "Calculator", href: "/tile-calculator" },
     { name: "Contact", href: "/contact" },
   ];
 
@@ -110,15 +158,18 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden items-center justify-center gap-9 text-[12px] font-bold uppercase tracking-[0.32em] text-[#3e1f1c] md:flex">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className="transition-opacity hover:opacity-60"
-              >
-                {link.name}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href || (link.href !== '/' && pathname?.startsWith(link.href));
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  className={`transition-all hover:opacity-60 ${isActive ? "text-black font-black drop-shadow-sm" : "opacity-80"}`}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
           </div>
 
           {/* Desktop Icons */}
@@ -133,9 +184,14 @@ const Navbar = () => {
             <Link
               href="/wishlist"
               aria-label="Wishlist"
-              className="flex h-10 w-10 items-center justify-center transition-opacity hover:opacity-60"
+              className="relative flex h-10 w-10 items-center justify-center transition-opacity hover:opacity-60"
             >
               <FiHeart size={20} strokeWidth={1.6} />
+              {wishlistCount > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#4a2c2a] text-[9px] font-bold text-white">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
             <button
               type="button"
@@ -157,9 +213,14 @@ const Navbar = () => {
             <Link
               href="/wishlist"
               aria-label="Wishlist"
-              className="flex h-9 w-9 items-center justify-center transition-opacity hover:opacity-60"
+              className="relative flex h-9 w-9 items-center justify-center transition-opacity hover:opacity-60"
             >
               <FiHeart size={20} strokeWidth={1.6} />
+              {wishlistCount > 0 && (
+                <span className="absolute right-0 top-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#4a2c2a] text-[9px] font-bold text-white">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
             <button
               type="button"
@@ -224,17 +285,20 @@ const Navbar = () => {
   ${isMenuOpen ? "translate-x-0" : "translate-x-full"}
 `}
         >
-          <div className="flex h-full flex-col items-end justify-center space-y-8 px-8 text-right font-serif text-[16px] uppercase tracking-[0.3em] text-[#4a2c2a]">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                onClick={() => setIsMenuOpen(false)}
-                className="hover:opacity-60 transition-all"
-              >
-                {link.name}
-              </Link>
-            ))}
+          <div className="flex h-full flex-col items-end justify-center space-y-8 px-8 text-right font-serif text-[16px] uppercase tracking-[0.3em]">
+            {navLinks.map((link) => {
+              const isActive = pathname === link.href || (link.href !== '/' && pathname?.startsWith(link.href));
+              return (
+                <Link
+                  key={link.name}
+                  href={link.href}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`transition-all hover:opacity-60 ${isActive ? "text-black font-black" : "text-[#4a2c2a]"}`}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
 
             <Link
               href="/wishlist"

@@ -4,6 +4,7 @@ import ApplicationPossibilities from "@/components/home/ApplicationPossibilities
 import TopSellingTiles from "@/components/home/TopSellingTiles";
 import AboutSection from "@/components/home/AboutSection";
 import ContactSection from "@/components/home/ContactSection";
+import InstagramReels from "@/components/home/InstagramReels";
 
 export default function Home() {
   return (
@@ -14,6 +15,7 @@ export default function Home() {
       <AboutSection />
       <TopSellingTiles />
       <ContactSection />
+      <InstagramReels />
     </main>
   );
 }

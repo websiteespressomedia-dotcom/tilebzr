@@ -175,7 +175,8 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { 
   fetchProductById, 
   clearCurrentProduct,
-  updateProductAsync
+  updateProductAsync,
+  deleteProductAsync
 } from "@/store/slices/productSlice";
 import toast from "react-hot-toast";
 import { 
@@ -220,7 +221,7 @@ const getProductImagePath = (product: any) => {
 
 export default function AdminProductDetails() {
   const { id } = useParams();
-//   const router = useRouter();
+  const router = useRouter();
   const dispatch = useAppDispatch();
   const { currentProduct, loading, error } = useAppSelector((state) => state.products);
   const [isToggling, setIsToggling] = useState(false);
@@ -271,7 +272,7 @@ export default function AdminProductDetails() {
       setIsToggling(false);
     }
   };
-//   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -282,26 +283,26 @@ export default function AdminProductDetails() {
     };
   }, [id, dispatch]);
 
-//   const handleDelete = async () => {
-//     const confirmDelete = window.confirm(
-//       "Are you sure you want to delete this product? This will remove it from the catalog permanently."
-//     );
+  const handleDelete = async () => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this product? This will remove it from the catalog permanently."
+    );
     
-//     if (confirmDelete) {
-//       setIsDeleting(true);
-//       try {
-//         const result = await dispatch(deleteProductAsync(id as string));
-//         if (deleteProductAsync.fulfilled.match(result)) {
-//           router.push("/admin/products");
-//         } else {
-//           alert("Failed to delete product. Please try again.");
-//           setIsDeleting(false);
-//         }
-//       } catch (err) {
-//         setIsDeleting(false);
-//       }
-//     }
-//   };
+    if (confirmDelete) {
+      setIsDeleting(true);
+      try {
+        const result = await dispatch(deleteProductAsync(id as string));
+        if (deleteProductAsync.fulfilled.match(result)) {
+          router.push("/admin/products");
+        } else {
+          alert("Failed to delete product. Please try again.");
+          setIsDeleting(false);
+        }
+      } catch (err) {
+        setIsDeleting(false);
+      }
+    }
+  };
 
   // 1. Loading State
   if (loading || (!currentProduct && !error)) {
@@ -347,14 +348,14 @@ export default function AdminProductDetails() {
             <IoCreateOutline size={16} />
             Edit Product
           </Link>
-          {/* <button 
+          <button 
             onClick={handleDelete}
             disabled={isDeleting}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-red-50 text-red-600 px-8 py-3 text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
           >
             <IoTrashOutline size={16} />
             {isDeleting ? "Processing..." : "Delete"}
-          </button> */}
+          </button>
         </div>
       </div>
 

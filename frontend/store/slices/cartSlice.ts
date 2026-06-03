@@ -11,6 +11,7 @@ export interface ProductDetails {
   image: string;
   size: string;
   slug: string;
+  category?: string;
 }
 
 export interface CartItem {

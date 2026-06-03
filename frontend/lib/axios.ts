@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL, // e.g., http://localhost:5000
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://tilebazaardemowork-production.up.railway.app', // Fallback to railway if env is not set
   headers: {
     'Content-Type': 'application/json',
   },
@@ -9,7 +9,7 @@ const api = axios.create({
 
 // Automatically add the JWT token to every request if it exists
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }

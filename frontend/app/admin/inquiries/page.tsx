@@ -38,7 +38,7 @@ export default function AdminInquiriesPage() {
           </p>
           <h1 className="font-serif text-3xl text-[#4a2c2a]">Inquiry submissions</h1>
           <p className="mt-2 text-sm text-gray-500">
-            {inquiries.length} total inquiry{inquiries.length === 1 ? "" : "ies"} received.
+            {inquiries.length} total {inquiries.length === 1 ? "inquiry" : "inquiries"} received.
           </p>
         </div>
         <Link

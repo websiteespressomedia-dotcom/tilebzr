@@ -157,14 +157,29 @@ const getProductImagePath = (product: any) => {
   return `/tiles/${size}/${product.image}`;
 };
 
+// Derive the correct price from the product name using the same rules
+// as TileGallery so the cart always reflects up-to-date frontend pricing
+// even when the backend DB still stores an older value.
+const getFrontendPrice = (product: any): number => {
+  const name = ((product?.name || '') + ' ' + (product?.slug || '') + ' ' + (product?.image || '')).toUpperCase();
+  if (name.includes('TRIM')) return 8;
+  if (name.includes('SPACER') || name.includes('WEDGE')) return 6;
+  if (name.includes('ADHESIVE') || name.includes('GLUE')) return 12;
+  if (name.includes('MATTING')) return 6;
+  // New Arrivals & Outdoor tiles are priced at £18
+  if (name.includes('AURL GRIGIO') || name.includes('PAVE') || name.includes('SALT CONCRETO') || name.includes('SALTED CONCRETO') || name.includes('OUTDOOR')) return 18;
+  // All other regular tiles are £15
+  return 15;
+};
+
 const getProductPrice = (product: any) => {
   if (!product) return 0;
-  const price = Number(product.price) || 0;
+  const backendPrice = Number(product.price) || 0;
   const discountPrice = Number(product.discount_price) || 0;
-  if (discountPrice > 0 && discountPrice < price) {
-    return discountPrice;
-  }
-  return price;
+  // If backend has a valid discount price lower than regular price, honour it
+  if (discountPrice > 0 && discountPrice < backendPrice) return discountPrice;
+  // Always use frontend price to avoid showing stale DB values
+  return getFrontendPrice(product);
 };
 
 export default function CartDrawer({
@@ -186,9 +201,48 @@ export default function CartDrawer({
   const totalPrice = cartItems.reduce((acc, item) => {
     return (
       acc +
-      getProductPrice(item.product) * item.quantity
+      getProductPrice(item.product) * item.quantity * 1.44
     );
   }, 0);
+
+  const totalWeight = cartItems.reduce((acc, item) => {
+    const product = item.product;
+    const name = product?.name?.toUpperCase() || "";
+    const category = product?.category?.toUpperCase() || "";
+    
+    // Check if it's an adhesive (typically 20kg per bag)
+    if (name.includes("ADHESIVE") || name.includes("GLUE")) {
+      return acc + (item.quantity * 20);
+    }
+    
+    // Check if it's an accessory (typically 1kg per piece/bag)
+    if (category === "ACCESSORIES" || name.includes("TRIM") || name.includes("SPACER") || name.includes("WEDGE") || name.includes("MATTING") || name.includes("LEVEL")) {
+      return acc + (item.quantity * 1);
+    }
+    
+    // Standard tile box weight (assume 1.44m2 box weighs 29kg)
+    return acc + (item.quantity * 29);
+  }, 0);
+
+  const fullPallets = Math.floor(totalWeight / 1000);
+  const remainderWeight = totalWeight % 1000;
+  let partialPallet = "";
+  if (remainderWeight > 0) {
+    if (remainderWeight <= 250) partialPallet = "1 QUARTER";
+    else if (remainderWeight <= 500) partialPallet = "1 HALF";
+    else partialPallet = "1 FULL"; 
+  }
+  
+  let displayPallet = "0";
+  if (fullPallets > 0 && partialPallet && partialPallet !== "1 FULL") {
+      displayPallet = `${fullPallets} FULL & ${partialPallet}`;
+  } else if (fullPallets > 0 && partialPallet === "1 FULL") {
+      displayPallet = `${fullPallets + 1} FULL`;
+  } else if (fullPallets > 0) {
+      displayPallet = `${fullPallets} FULL`;
+  } else if (partialPallet) {
+      displayPallet = `0 FULL & ${partialPallet}`;
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -319,10 +373,10 @@ export default function CartDrawer({
                     </div>
 
                     <p className="text-[11px] text-[#4a2c2a] mt-1 tracking-tighter">
-                      <span className="text-[12px]">
-                        £{getProductPrice(product)} /m²{" "}
+                      <span className="text-[12px] font-bold">
+                        £{getProductPrice(product).toFixed(2)} /m²{" "}
                       </span>
-                      • {product.size}
+                      • {product.size} • {(item.quantity * 1.44).toFixed(2)} SQM ({item.quantity} boxes)
                     </p>
 
                     <div className="flex items-center justify-between mt-auto pt-4">
@@ -351,7 +405,7 @@ export default function CartDrawer({
                         £
                         {(
                           getProductPrice(product) *
-                          item.quantity
+                          item.quantity * 1.44
                         ).toFixed(2)}
                       </p>
                     </div>
@@ -364,13 +418,54 @@ export default function CartDrawer({
 
         {/* Footer */}
         {cartItems.length > 0 && (
-          <div className="p-6 border-t border-gray-100">
+          <div className="p-6 border-t border-gray-100 bg-[#faf9f8]">
+            <div className="flex gap-4 mb-6 bg-gray-50 border border-gray-100 p-4 rounded-sm">
+              <div className="flex-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5e7e95] mb-1.5">Boxes</p>
+                <p className="text-[13px] font-bold text-[#4a2c2a]">{totalCount}</p>
+              </div>
+              <div className="flex-1">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5e7e95] mb-1.5">Weight</p>
+                <p className="text-[13px] font-bold text-[#4a2c2a]">{totalWeight} kg</p>
+              </div>
+              <div className="flex-[1.5]">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5e7e95] mb-1.5">Pallets</p>
+                <p className="text-[13px] font-bold text-[#4a2c2a] uppercase">{displayPallet}</p>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#4a2c2a]">
+                Material Subtotal
+              </span>
+              <span className="text-[12px] font-bold text-[#4a2c2a]">
+                £{totalPrice.toFixed(2)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#4a2c2a]">
+                VAT (20%)
+              </span>
+              <span className="text-[12px] font-bold text-[#4a2c2a]">
+                £{(totalPrice * 0.20).toFixed(2)}
+              </span>
+            </div>
+            <div className="w-full h-[1px] bg-gray-200 mb-4" />
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-[11px] font-black uppercase tracking-widest text-[#4a2c2a]">
+                Delivery (Logistics)
+              </span>
+              <span className="text-[12px] font-bold text-[#4a2c2a]">
+                Calculated at checkout
+              </span>
+            </div>
+            <div className="w-full h-[1px] bg-gray-200 mb-4" />
             <div className="flex justify-between items-center mb-6">
-              <span className="text-[11px] font-bold uppercase opacity-50 tracking-widest">
-                Subtotal
+              <span className="text-[12px] font-black uppercase tracking-widest text-[#4a2c2a]">
+                Total Estimate
               </span>
               <span className="text-[20px] font-bold text-[#4a2c2a]">
-                £{totalPrice.toFixed(2)}
+                £{(totalPrice * 1.20).toFixed(2)}
               </span>
             </div>
             <button
@@ -378,7 +473,7 @@ export default function CartDrawer({
                 onClose();
                 router.push("/checkout");
               }}
-              className="w-full bg-[#4a2c2a] text-white py-5 text-[11px] font-bold uppercase tracking-[0.2em] hover:bg-black transition-colors"
+              className="w-full bg-[#4a2c2a] text-white py-4 text-[12px] font-bold uppercase tracking-[0.2em] hover:bg-[#3a1c1a] rounded-sm transition-colors"
             >
               Checkout
             </button>

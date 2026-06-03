@@ -10,6 +10,9 @@ import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import inquiryRoutes from './routes/inquiryRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import couponRoutes from './routes/couponRoutes.js';
+import deliveryRoutes from './routes/deliveryRoutes.js';
 
 dotenv.config();
 
@@ -17,8 +20,25 @@ const app = express();
 
 // 1. Security Middlewares
 app.use(helmet());
+
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http:tilebazaardemowork.vercel.app',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+  'http://localhost:5000'
+].filter(Boolean) as string[];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL, // Your Next.js frontend URL
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
@@ -31,8 +51,11 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/delivery', deliveryRoutes);
 
 // 3. Rate Limiting
 const limiter = rateLimit({
@@ -51,3 +74,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
+
+// nodemon restart trigger

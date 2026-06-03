@@ -9,7 +9,10 @@ import {
   deleteProduct,
   adminGetProducts,
   getUserById,
-  adminGetOrderById
+  adminGetOrderById,
+  getAdminAccounts,
+  getAdminLogs,
+  verifyAdminCredentials
 } from "../controllers/adminController.js";
 import { getAllInquiries } from "../controllers/inquiryController.js";
 import { protect, adminOnly } from "../middlewares/authMiddleware.js";
@@ -39,5 +42,10 @@ router.get("/inquiries", getAllInquiries);
 // Customer Management
 router.get("/users", getAllUsers);
 router.get("/users/:id", getUserById);
+
+// Admin Management
+router.get("/system-accounts", getAdminAccounts);
+router.get("/system-accounts/logs", getAdminLogs);
+router.post("/system-accounts/verify", verifyAdminCredentials);
 
 export default router;

@@ -1,0 +1,26 @@
+{
+  "jane@tilebazaar.co.uk": {
+    "email": "jane@tilebazaar.co.uk",
+    "is_logged_in": false,
+    "last_login": "2026-05-28T09:49:18.964Z",
+    "last_logout": "2026-05-28T10:33:25.052Z"
+  },
+  "admin2@tilebazaar.co.uk": {
+    "email": "admin2@tilebazaar.co.uk",
+    "is_logged_in": false,
+    "last_login": "2026-06-03T05:46:37.508Z",
+    "last_logout": "2026-06-03T05:47:09.135Z"
+  },
+  "admin3@tilebazaar.co.uk": {
+    "email": "admin3@tilebazaar.co.uk",
+    "is_logged_in": false,
+    "last_login": "2026-05-27T10:35:17.819Z",
+    "last_logout": "2026-05-27T10:49:46.354Z"
+  },
+  "admin4@tilebazaar.co.uk": {
+    "email": "admin4@tilebazaar.co.uk",
+    "is_logged_in": false,
+    "last_login": "2026-05-27T10:39:22.323Z",
+    "last_logout": "2026-05-27T10:49:46.354Z"
+  }
+}

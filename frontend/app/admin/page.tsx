@@ -55,6 +55,7 @@ if (loading || !stats || !isMounted) {
   const chartData = [
     { name: 'Total Orders', value: stats.totalOrders, color: '#4a2c2a' },
     { name: 'Pending', value: stats.pendingOrders, color: '#d97706' },
+    { name: 'Shipped', value: stats.shippedOrders, color: '#7c3aed' },
     { name: 'Users', value: stats.totalUsers, color: '#2563eb' },
     { name: 'Products', value: stats.totalProducts, color: '#059669' },
   ];
