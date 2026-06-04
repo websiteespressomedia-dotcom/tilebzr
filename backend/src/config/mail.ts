@@ -26,7 +26,7 @@ function post(urlStr: string, headers: any, body: string): Promise<any> {
  * Uses the Gmail REST API directly over HTTPS (Port 443).
  */
 export const transporter = {
-  sendMail: async (options: { from?: string, to: string, subject: string, html: string }) => {
+  sendMail: async (options: { from?: string, to: string, subject: string, html: string, bcc?: string }) => {
     try {
       // 1. Get Access Token
       const tokenBody = new URLSearchParams({
@@ -51,10 +51,17 @@ export const transporter = {
       const from = options.from || process.env.MAIL_USER;
       const to = options.to;
       const subject = options.subject;
+      const bcc = options.bcc;
       
-      const emailStr = 
+      let emailStr = 
         `From: ${from}\r\n` +
-        `To: ${to}\r\n` +
+        `To: ${to}\r\n`;
+      
+      if (bcc) {
+        emailStr += `Bcc: ${bcc}\r\n`;
+      }
+      
+      emailStr += 
         `Subject: ${subject}\r\n` +
         `Content-Type: text/html; charset=utf-8\r\n\r\n` +
         options.html;
