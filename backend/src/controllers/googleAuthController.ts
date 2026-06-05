@@ -2,9 +2,7 @@ import { Request, Response } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../config/supabase.js';
-import { transporter, sendOTPEmail } from '../config/mail.js';
 import crypto from 'crypto';
-import { otpStore } from './otpController.js';
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
@@ -73,6 +71,13 @@ export const googleRegister = async (req: Request, res: Response) => {
     
     if (!phone_number) {
       return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(phone_number)) {
+      return res.status(400).json({
+        message: 'Please enter a valid mobile number'
+      });
     }
 
     // Verify the Google token

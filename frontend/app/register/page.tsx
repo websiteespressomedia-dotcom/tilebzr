@@ -12,11 +12,12 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
-    password: ''
+    password: '',
+    phone_number: ''
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
+  const [validationError, setValidationError] = useState('');
   
   // Google Auth States
   const [googleToken, setGoogleToken] = useState<string | null>(null);
@@ -34,16 +35,26 @@ export default function RegisterPage() {
       ...formData,
       [e.target.name]: e.target.value
     });
+    setValidationError(''); // Clear validation error when user types
+  };
+
+  const validatePhone = (phone: string) => {
+    const phoneRegex = /^[6-9]\d{9}$/;
+    return phoneRegex.test(phone);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setValidationError('');
+
+    if (!validatePhone(formData.phone_number)) {
+      setValidationError("Please enter a valid 10-digit mobile number");
+      return;
+    }
 
     const result = await dispatch(registerUser(formData));
 
     if (registerUser.fulfilled.match(result)) {
-
-      
       const data = result.payload;
       if (data?.token) localStorage.setItem('token', data.token);
       if (data?.user?.role === 'admin') {
@@ -59,19 +70,25 @@ export default function RegisterPage() {
   const handleGoogleSuccess = async (credentialResponse: any) => {
     if (credentialResponse.credential) {
       setGoogleToken(credentialResponse.credential);
+      setValidationError('');
     }
   };
   
   const handleGoogleRegisterSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setValidationError('');
+
     if (!googleToken || !googlePhoneNumber) return;
+
+    if (!validatePhone(googlePhoneNumber)) {
+      setValidationError("Please enter a valid 10-digit mobile number");
+      return;
+    }
     
     const result = await dispatch(googleRegisterUser({ token: googleToken, phone_number: googlePhoneNumber }));
     if (googleRegisterUser.fulfilled.match(result)) {
-
-      
       const user = result.payload.user;
-      if (user.role === 'admin') {
+      if (user?.role === 'admin') {
         router.push('/admin');
       } else {
         router.push('/');
@@ -80,8 +97,6 @@ export default function RegisterPage() {
       console.error("Google register failed:", (result as any).payload || (result as any).error);
     }
   };
-
-
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -99,19 +114,30 @@ export default function RegisterPage() {
           <form onSubmit={handleGoogleRegisterSubmit} className="space-y-6">
             <div>
               <label htmlFor="phone_number" className="text-[10px] text-[#4a2c2a] font-bold uppercase tracking-tight opacity-60">
-                Phone Number
+                Mobile Number
               </label>
               <input
                 id="phone_number"
                 type="tel"
                 required
-                placeholder="+44 7700 900000"
+                placeholder="9876543210"
                 value={googlePhoneNumber}
-                onChange={(e) => setGooglePhoneNumber(e.target.value)}
+                onChange={(e) => {
+                  setGooglePhoneNumber(e.target.value);
+                  setValidationError('');
+                }}
                 className="w-full mt-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm transition-colors"
               />
             </div>
             
+            {validationError && (
+              <div className="bg-red-50 p-3 border-l-2 border-red-500">
+                <p className="text-red-600 text-[10px] font-bold uppercase leading-relaxed">
+                  {validationError}
+                </p>
+              </div>
+            )}
+
             {error && (
               <div className="bg-red-50 p-3 border-l-2 border-red-500">
                 <p className="text-red-600 text-[10px] font-bold uppercase leading-relaxed">
@@ -196,6 +222,30 @@ export default function RegisterPage() {
                   </button>
                 </div>
               </div>
+
+              <div>
+                <label htmlFor="phone_number" className="text-[10px] text-[#4a2c2a] font-bold uppercase tracking-tight opacity-60">
+                  Mobile Number
+                </label>
+                <input
+                  id="phone_number"
+                  name="phone_number"
+                  type="tel"
+                  required
+                  placeholder="9876543210"
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  className="w-full mt-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm transition-colors"
+                />
+              </div>
+
+              {validationError && (
+                <div className="bg-red-50 p-3 border-l-2 border-red-500">
+                  <p className="text-red-600 text-[10px] font-bold uppercase leading-relaxed">
+                    {validationError}
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-50 p-3 border-l-2 border-red-500">

@@ -4,9 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { supabase } from '../config/supabase.js';
 import { User } from '../models/userModel.js';
-import { transporter, sendOTPEmail } from '../config/mail.js';
 import { logAdminAction, updateAdminStatus } from '../utils/adminLogger.js';
-import { otpStore } from './otpController.js';
 
 // 1. REGISTER USER
 export const register = async (req: Request, res: Response) => {
@@ -25,6 +23,19 @@ export const register = async (req: Request, res: Response) => {
     if (!email || !password || !full_name) {
       return res.status(400).json({
         message: 'Please provide email, password, and full name'
+      });
+    }
+
+    if (!phone_number) {
+      return res.status(400).json({
+        message: 'Please provide a mobile number'
+      });
+    }
+
+    const phoneRegex = /^[6-9]\d{9}$/;
+    if (!phoneRegex.test(phone_number)) {
+      return res.status(400).json({
+        message: 'Please enter a valid mobile number'
       });
     }
 
@@ -286,23 +297,11 @@ export const forgotPassword = async (req: Request, res: Response) => {
       reset_password_expires: tokenExpiry
     }).eq('id', user.id);
 
-    // Send Email
+    // Send Email (Mocked since SMTP is removed)
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
-    const mailOptions = {
-      from: `"TileBazaar Support" <${process.env.MAIL_USER}>`,
-      to: email,
-      subject: 'Password Reset Request',
-      html: `
-    <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd;">
-      <h2>Reset Your Password</h2>
-      <p>Click the link below to reset your TileBazaar account password:</p>
-      <a href="${resetUrl}" style="background: #000; color: #fff; padding: 10px 15px; text-decoration: none;">Reset Password</a>
-    </div>
-  `,
-    };
-    await transporter.sendMail(mailOptions);
+    console.log("Password Reset URL:", resetUrl);
 
-    res.json({ message: "Reset link sent to your email" });
+    res.json({ message: "Reset link generated (check server logs since SMTP is removed)" });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
