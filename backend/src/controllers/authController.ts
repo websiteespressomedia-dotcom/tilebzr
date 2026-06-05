@@ -45,10 +45,6 @@ export const register = async (req: Request, res: Response) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
-
     const registrationData = {
       email,
       password: hashedPassword,
@@ -60,20 +56,31 @@ export const register = async (req: Request, res: Response) => {
       country: 'United Kingdom'
     };
 
-    otpStore.set(email, { 
-      code: otpCode, 
-      expires, 
-      type: 'register', 
-      registrationData 
-    });
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([registrationData])
+      .select()
+      .single();
 
-    // Send OTP Email using Resend
-    await sendOTPEmail(email, full_name, otpCode, 'register');
+    if (insertError || !newUser) {
+      console.error('Error inserting user:', insertError);
+      return res.status(500).json({ message: 'Failed to create user account' });
+    }
 
-    res.status(200).json({
-      status: 'OTP_REQUIRED',
-      email: email,
-      message: 'Verification code sent to your email address'
+    // Generate custom JWT for the new user
+    const jwtToken = jwt.sign(
+      { id: newUser.id, role: newUser.role || 'customer' },
+      process.env.JWT_SECRET || 'tile_secret_key',
+      { expiresIn: '7d' }
+    );
+
+    const userResponse = { ...newUser };
+    delete userResponse.password;
+
+    res.status(201).json({
+      message: 'Registration successful',
+      token: jwtToken,
+      user: userResponse
     });
 
   } catch (err: any) {
@@ -170,19 +177,20 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    // Generate custom JWT
+    const jwtToken = jwt.sign(
+      { id: user.id, role: user.role || 'customer' },
+      process.env.JWT_SECRET || 'tile_secret_key',
+      { expiresIn: '7d' }
+    );
 
-    otpStore.set(user.email, { code: otpCode, expires, type: 'login' });
-
-    // Send OTP Email using Resend
-    await sendOTPEmail(user.email, user.full_name, otpCode, 'login');
+    const userResponse = { ...user };
+    delete userResponse.password;
 
     res.status(200).json({
-      status: 'OTP_REQUIRED',
-      email: user.email,
-      message: 'OTP sent to your email address'
+      message: 'Login successful',
+      token: jwtToken,
+      user: userResponse
     });
   } catch (err: any) {
     res.status(500).json({ message: err.message });

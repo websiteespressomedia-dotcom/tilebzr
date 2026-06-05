@@ -41,20 +41,20 @@ export const googleLogin = async (req: Request, res: Response) => {
       // User does NOT exist - block login
       return res.status(404).json({ message: 'No account found with this Google email. Please register first.' });
     } 
-    
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    // Generate custom JWT
+    const jwtToken = jwt.sign(
+      { id: user.id, role: user.role || 'customer' },
+      process.env.JWT_SECRET || 'tile_secret_key',
+      { expiresIn: '7d' }
+    );
 
-    otpStore.set(user.email, { code: otpCode, expires, type: 'login' });
-
-    // Send OTP Email using Resend
-    await sendOTPEmail(user.email, user.full_name, otpCode, 'login');
+    const userResponse = { ...user };
+    delete userResponse.password;
 
     res.status(200).json({
-      status: 'OTP_REQUIRED',
-      email: user.email,
-      message: 'OTP sent to your email address'
+      message: 'Login successful',
+      token: jwtToken,
+      user: userResponse
     });
   } catch (err: any) {
     console.error('Google login error:', err);
@@ -110,24 +110,31 @@ export const googleRegister = async (req: Request, res: Response) => {
       country: 'United Kingdom', // Default
     };
 
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = Date.now() + 5 * 60 * 1000; // 5 minutes
+    const { data: newUser, error: insertError } = await supabase
+      .from('users')
+      .insert([registrationData])
+      .select()
+      .single();
 
-    otpStore.set(email, { 
-      code: otpCode, 
-      expires, 
-      type: 'register', 
-      registrationData 
-    });
+    if (insertError || !newUser) {
+      console.error('Error inserting user:', insertError);
+      return res.status(500).json({ message: 'Failed to create user account' });
+    }
 
-    // Send OTP Email using Resend
-    await sendOTPEmail(email, full_name || 'Google User', otpCode, 'register');
+    // Generate custom JWT for the new user
+    const jwtToken = jwt.sign(
+      { id: newUser.id, role: newUser.role || 'customer' },
+      process.env.JWT_SECRET || 'tile_secret_key',
+      { expiresIn: '7d' }
+    );
 
-    res.status(200).json({
-      status: 'OTP_REQUIRED',
-      email: email,
-      message: 'Verification code sent to your email address'
+    const userResponse = { ...newUser };
+    delete userResponse.password;
+
+    res.status(201).json({
+      message: 'Registration successful',
+      token: jwtToken,
+      user: userResponse
     });
   } catch (err: any) {
     console.error('Google register error:', err);

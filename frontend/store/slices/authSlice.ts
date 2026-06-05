@@ -32,8 +32,6 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   isInitialized: boolean;
-  isOtpRequired: boolean;
-  pendingUserEmail: string | null;
 }
 interface LoginCredentials {
   email: string;
@@ -51,8 +49,6 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   isInitialized: false,
-  isOtpRequired: false,
-  pendingUserEmail: null,
 };
 
 // Login Thunk
@@ -135,20 +131,7 @@ export const googleRegisterUser = createAsyncThunk(
   }
 );
 
-// Verify OTP Thunk
-export const verifyOtp = createAsyncThunk(
-  'auth/verifyOtp',
-  async (data: { email: string; otp: string }, thunkAPI) => {
-    try {
-      const response = await api.post('/api/auth/verify-otp', data);
-      return response.data;
-    } catch (error: any) {
-      return thunkAPI.rejectWithValue(
-        error.response?.data?.message || 'OTP verification failed'
-      );
-    }
-  }
-);
+
 
 export const getProfile = createAsyncThunk(
   "auth/getProfile",
@@ -220,20 +203,15 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.status === 'OTP_REQUIRED') {
-          state.isOtpRequired = true;
-          state.pendingUserEmail = action.payload.email;
-        } else {
-          state.user = action.payload.user;
-          state.token = action.payload.token;
-          if (typeof window !== "undefined") {
-            if (action.payload.user?.role === 'admin') {
-              sessionStorage.setItem("token", action.payload.token);
-              sessionStorage.setItem("user", JSON.stringify(action.payload.user));
-            } else {
-              localStorage.setItem("token", action.payload.token);
-              localStorage.setItem("user", JSON.stringify(action.payload.user));
-            }
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        if (typeof window !== "undefined") {
+          if (action.payload.user?.role === 'admin') {
+            sessionStorage.setItem("token", action.payload.token);
+            sessionStorage.setItem("user", JSON.stringify(action.payload.user));
+          } else {
+            localStorage.setItem("token", action.payload.token);
+            localStorage.setItem("user", JSON.stringify(action.payload.user));
           }
         }
       })
@@ -247,30 +225,6 @@ const authSlice = createSlice({
       })
       .addCase(googleLoginUser.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.status === 'OTP_REQUIRED') {
-          state.isOtpRequired = true;
-          state.pendingUserEmail = action.payload.email;
-        } else {
-          state.user = action.payload.user;
-          state.token = action.payload.token;
-          if (typeof window !== "undefined") {
-            localStorage.setItem("token", action.payload.token);
-            localStorage.setItem("user", JSON.stringify(action.payload.user));
-          }
-        }
-      })
-      .addCase(googleLoginUser.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload as string;
-      })
-      .addCase(verifyOtp.pending, (state) => {
-        state.loading = true;
-        state.error = null;
-      })
-      .addCase(verifyOtp.fulfilled, (state, action) => {
-        state.loading = false;
-        state.isOtpRequired = false;
-        state.pendingUserEmail = null;
         state.user = action.payload.user;
         state.token = action.payload.token;
         if (typeof window !== "undefined") {
@@ -278,26 +232,22 @@ const authSlice = createSlice({
           localStorage.setItem("user", JSON.stringify(action.payload.user));
         }
       })
-      .addCase(verifyOtp.rejected, (state, action) => {
+      .addCase(googleLoginUser.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
+
       .addCase(googleRegisterUser.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(googleRegisterUser.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.status === 'OTP_REQUIRED') {
-          state.isOtpRequired = true;
-          state.pendingUserEmail = action.payload.email;
-        } else {
-          state.user = action.payload.user;
-          state.token = action.payload.token;
-          if (typeof window !== "undefined" && action.payload.token) {
-            localStorage.setItem("token", action.payload.token);
-            localStorage.setItem("user", JSON.stringify(action.payload.user));
-          }
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        if (typeof window !== "undefined" && action.payload.token) {
+          localStorage.setItem("token", action.payload.token);
+          localStorage.setItem("user", JSON.stringify(action.payload.user));
         }
       })
       .addCase(googleRegisterUser.rejected, (state, action) => {
@@ -310,16 +260,11 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.status === 'OTP_REQUIRED') {
-          state.isOtpRequired = true;
-          state.pendingUserEmail = action.payload.email;
-        } else {
-          state.user = action.payload.user;
-          state.token = action.payload.token || state.token;
-          if (typeof window !== "undefined" && action.payload.token) {
-            localStorage.setItem("token", action.payload.token);
-            localStorage.setItem("user", JSON.stringify(action.payload.user));
-          }
+        state.user = action.payload.user;
+        state.token = action.payload.token || state.token;
+        if (typeof window !== "undefined" && action.payload.token) {
+          localStorage.setItem("token", action.payload.token);
+          localStorage.setItem("user", JSON.stringify(action.payload.user));
         }
       })
       .addCase(registerUser.rejected, (state, action) => {

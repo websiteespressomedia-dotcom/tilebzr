@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { registerUser, googleRegisterUser, verifyOtp } from '@/store/slices/authSlice';
+import { registerUser, googleRegisterUser } from '@/store/slices/authSlice';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
@@ -25,7 +25,7 @@ export default function RegisterPage() {
   const dispatch = useAppDispatch();
   const router = useRouter();
 
-  const { loading, error, isOtpRequired, pendingUserEmail } = useAppSelector(
+  const { loading, error } = useAppSelector(
     (state) => state.auth
   );
 
@@ -42,10 +42,7 @@ export default function RegisterPage() {
     const result = await dispatch(registerUser(formData));
 
     if (registerUser.fulfilled.match(result)) {
-      if (result.payload.status === 'OTP_REQUIRED') {
-        // State handles UI switch
-        return;
-      }
+
       
       const data = result.payload;
       if (data?.token) localStorage.setItem('token', data.token);
@@ -55,7 +52,7 @@ export default function RegisterPage() {
         router.push('/');
       }
     } else {
-      console.error('Registration failed:', result.payload || result.error);
+      console.error('Registration failed:', (result as any).payload || (result as any).error);
     }
   };
 
@@ -71,10 +68,7 @@ export default function RegisterPage() {
     
     const result = await dispatch(googleRegisterUser({ token: googleToken, phone_number: googlePhoneNumber }));
     if (googleRegisterUser.fulfilled.match(result)) {
-      if (result.payload.status === 'OTP_REQUIRED') {
-        // State handles UI switch
-        return;
-      }
+
       
       const user = result.payload.user;
       if (user.role === 'admin') {
@@ -83,70 +77,25 @@ export default function RegisterPage() {
         router.push('/');
       }
     } else {
-      console.error("Google register failed:", result.payload || result.error);
+      console.error("Google register failed:", (result as any).payload || (result as any).error);
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!pendingUserEmail || !otpCode) return;
 
-    const result = await dispatch(verifyOtp({ email: pendingUserEmail, otp: otpCode }));
-    if (verifyOtp.fulfilled.match(result)) {
-      const user = result.payload.user;
-      if (user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/');
-      }
-    } else {
-      console.error("OTP Verification failed:", result.payload || result.error);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="max-w-md w-full bg-white p-10 shadow-sm border border-gray-100">
         <header className="text-center mb-10">
           <h2 className="text-3xl font-serif text-[#4a2c2a] mb-2">
-            {isOtpRequired ? 'Two-Factor Authentication' : googleToken ? 'Almost there!' : 'Create Account'}
+            {googleToken ? 'Almost there!' : 'Create Account'}
           </h2>
           <p className="text-[11px] uppercase tracking-widest opacity-50">
-            {isOtpRequired ? 'Verify your identity' : googleToken ? 'Please provide your phone number' : 'Join the TileBazaar community'}
+            {googleToken ? 'Please provide your phone number' : 'Join the TileBazaar community'}
           </p>
         </header>
 
-        {isOtpRequired ? (
-          <form onSubmit={handleOtpSubmit} className="space-y-6">
-            <div>
-              <label className="text-[10px] text-[#4a2c2a] font-bold uppercase tracking-tight opacity-60">
-                Enter 6-digit Code
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={6}
-                value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value)}
-                placeholder="000000"
-                className="w-full mt-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none transition-colors text-center tracking-[0.5em] text-lg font-bold"
-              />
-              <p className="text-[10px] text-gray-500 mt-2 text-center">
-                We sent a secure code to <strong>{pendingUserEmail}</strong>.
-              </p>
-            </div>
-
-            {error && <p className="text-red-500 text-[11px] font-bold uppercase text-center">{error}</p>}
-
-            <button
-              type="submit"
-              disabled={loading || otpCode.length !== 6}
-              className="w-full bg-[#4a2c2a] text-white py-4 text-[11px] font-bold uppercase tracking-[0.2em] hover:opacity-90 transition-opacity disabled:opacity-50"
-            >
-              {loading ? 'Verifying...' : 'Verify Code & Register'}
-            </button>
-          </form>
-        ) : googleToken ? (
+        {googleToken ? (
           <form onSubmit={handleGoogleRegisterSubmit} className="space-y-6">
             <div>
               <label htmlFor="phone_number" className="text-[10px] text-[#4a2c2a] font-bold uppercase tracking-tight opacity-60">
@@ -281,7 +230,7 @@ export default function RegisterPage() {
           </>
         )}
 
-        {!isOtpRequired && !googleToken && (
+        {!googleToken && (
           <footer className="mt-8 text-center">
             <p className="text-xs text-gray-500">
               Already have an account?{' '}

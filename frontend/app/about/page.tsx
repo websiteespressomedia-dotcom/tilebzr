@@ -16,7 +16,7 @@ export default function AboutPage() {
         </h1> */}
         <div className="relative w-full aspect-[16/9] rounded-sm overflow-hidden shadow-sm">
           <Image 
-            src="/images/about-hero.png" // High-res warehouse or showroom shot
+            src="/images/about_hero.png" // High-res warehouse or showroom shot
             alt="TileBazaar Showroom"
             fill
             sizes="90vw"
