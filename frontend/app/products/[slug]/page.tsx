@@ -9,6 +9,7 @@ import { addToCartAsync, mockAddToCart } from "@/store/slices/cartSlice";
 import { RootState } from "@/store/store";
 import { useCart } from "@/context/CartContext";
 import TilePackCalculator from "@/components/products/TilePackCalculator";
+import previewMap from "@/app/previewMap.json";
 
 /* ─────────────────────────────────────────────
    Pure helper functions (same logic as TileGallery)
@@ -226,7 +227,140 @@ const getCategory = (fileName: string) => {
   return "Premium Collection";
 };
 
+const getPreviewUrl = (fileName: string): string | null => {
+  const fileNameOnly = fileName.split("?")[0].split("/").pop() || fileName;
+  
+  // Normalize helper
+  const normalize = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/\.[^/.]+$/, "") // remove extension
+      .split("--")[0]           // remove suffix like --GLOSS
+      .replace(/[-_\s]/g, "");  // remove spaces, hyphens, underscores
 
+  const normalizedFile = normalize(fileNameOnly);
+
+  const singleTiles = [
+    "Levento_black_3_mo_1_preview.png",
+    "alexa_beige_r1_preview.png",
+    "alexa_brown_r1_preview.png",
+    "el_bricko_light_r1_preview.png",
+    "el_smog_gold_1.png",
+    "el_smog_gris_1_preview.png",
+    "emparador_brown_r1_preview.png",
+    "lux_09_r1_preview.png"
+  ];
+
+  const comboTiles = [
+    "ARTOVEL-018-HL.jpg",
+    "EARTHARO BRWON F1.jpg",
+    "GL-2509-DECOR.jpg",
+    "GL-2511-DECOR.jpg",
+    "GL-2513-DECORE.jpg",
+    "GL-2514-DECORE.jpg",
+    "PHANTOM DECOR.jpg",
+    "PRIZMA 08 HL.jpg",
+    "PRIZMA 26 HL.jpg",
+    "PRIZMA 27 HL.jpg",
+    "VECTRO 1502 HL-2 PUNCH.jpg",
+    "VECTRO-11003-HL.jpg",
+    "VECTRO-11051-HL.jpg",
+    "VECTRO-11080-HL-1.jpg",
+    "VECTRO-11110-HL.jpg",
+    "WAVES HL.jpg",
+    "WAVES NERO F1.jpg"
+  ];
+
+  // 1. Check single_tiles
+  for (const preview of singleTiles) {
+    let normPreview = normalize(preview);
+    if (normPreview.endsWith("preview")) {
+      normPreview = normPreview.slice(0, -7);
+    }
+    
+    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+      return `/previews/600x1200/single_tiles/${preview}`;
+    }
+  }
+
+  // 2. Check leftSideVariantsGroup for combo_tiles
+  const leftSideVariantsGroup = [
+    ["artovel 018 dk", "artovel 018 hl"],
+    ["earharo hl", "eartharo brwon f1", "earharo brown f1"],
+    ["el glitter aqua"],
+    ["gl 2509 decor", "gl 2509 lt"],
+    ["gl 2511 decor", "gl 2511 lt"],
+    ["gl 2513 decore", "gl 2513 lt"],
+    ["gl 2514 decore", "gl 2514 lt"],
+    ["emparador brown"],
+    ["irish red mp 1", "levanto black 3 mo 1"],
+    ["luxurious blue"],
+    ["phantom decor", "phantom onyx white"],
+    ["prizma 08 hl", "prizma 08 lt"],
+    ["prizma 26 hl", "prizma 26 lt"],
+    ["prizma 27 hl", "prizma 27 lt"],
+    ["vectro 1502 hl 2 punch", "vectro 1502 lt"],
+    ["vectro 11003 dk", "vectro 11003 hl"],
+    ["vectro 11051 hl", "vectro 11051 lt"],
+    ["vectro 11080 hl 1", "vectro 11080 hl 2", "vectro 11080 lt"],
+    ["vectro 11083 a", "vectro 11083 b", "vectro 11083 c"],
+    ["vectro 11110 hl", "vectro 11110 lt"],
+    ["waves hl", "waves nero f1"]
+  ];
+
+  const getVariantMatchName = (name: string) =>
+    name
+      .split("--")[0]
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[-_]/g, " ")
+      .replace(/\bR[1-9]\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+
+  const currentVariantMatch = getVariantMatchName(fileNameOnly);
+  
+  const matchedGroup = leftSideVariantsGroup.find((group) =>
+    group.some((item) => item.toLowerCase() === currentVariantMatch)
+  );
+
+  if (matchedGroup) {
+    // Try current variant match first
+    for (const preview of comboTiles) {
+      const normPreview = normalize(preview);
+      for (const item of matchedGroup) {
+        const normItem = normalize(item);
+        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+          if (currentVariantMatch === item.toLowerCase()) {
+            if (normPreview === normalize(currentVariantMatch)) {
+              return `/previews/600x1200/combo_tiles/${preview}`;
+            }
+          }
+        }
+      }
+    }
+    // Fall back to any group match
+    for (const preview of comboTiles) {
+      const normPreview = normalize(preview);
+      for (const item of matchedGroup) {
+        const normItem = normalize(item);
+        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+          return `/previews/600x1200/combo_tiles/${preview}`;
+        }
+      }
+    }
+  }
+
+  // 3. Direct match combo_tiles
+  for (const preview of comboTiles) {
+    const normPreview = normalize(preview);
+    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+      return `/previews/600x1200/combo_tiles/${preview}`;
+    }
+  }
+
+  return null;
+};
 
 /* ─────────────────────────────────────────────
    Page Component
@@ -396,6 +530,8 @@ export default function ProductDetailPage({
        category = params.get("category")!;
      }
   }
+
+  const previewUrl = getPreviewUrl(fileNameOnly);
 
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -608,7 +744,7 @@ export default function ProductDetailPage({
           {/* ════════════════════════════════
               LEFT — Large Product Image
           ════════════════════════════════ */}
-          <div className="w-full lg:w-[55%] xl:w-[58%] sticky top-28">
+          <div className="w-full lg:w-[55%] xl:w-[58%] lg:sticky lg:top-28">
             <div className="relative w-full aspect-square bg-transparent rounded-sm overflow-hidden flex items-center justify-center p-6 md:p-10 transition-all duration-300">
               {!imgError ? (
                 <img
@@ -700,7 +836,7 @@ export default function ProductDetailPage({
                 </p>
                 <div className="flex flex-wrap justify-start gap-5">
                   {variantPaths.map((path) => {
-                    const isActive = path === imagePath;
+                    const isActive = decodeURIComponent(path).split("?")[0] === decodeURIComponent(imagePath).split("?")[0];
                     const vNameWithoutQuery = path.split("?")[0];
                     const vName = formatFileName(vNameWithoutQuery.split("/").pop() || vNameWithoutQuery);
                     return (
@@ -1005,8 +1141,9 @@ export default function ProductDetailPage({
                 </p>
                 <div className="flex flex-wrap gap-4">
                   {variantPaths.map((path) => {
-                    const isActive = path === imagePath;
-                    const vName = formatFileName(path.split("/").pop() || path);
+                    const isActive = decodeURIComponent(path).split("?")[0] === decodeURIComponent(imagePath).split("?")[0];
+                    const vNameWithoutQuery = path.split("?")[0];
+                    const vName = formatFileName(vNameWithoutQuery.split("/").pop() || vNameWithoutQuery);
                     return (
                       <Link
                         key={path}
@@ -1017,7 +1154,7 @@ export default function ProductDetailPage({
                           className={`relative w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${isActive ? "border-[#4a2c2a]" : "border-transparent"} hover:border-[#4a2c2a]/50 transition-colors rounded-sm overflow-hidden`}
                         >
                           <img
-                            src={`/tiles/${path}`}
+                            src={path.startsWith("http") ? path.split("?")[0] : `/tiles/${path.split("?")[0]}`}
                             alt={vName}
                             
                             className="w-full h-full object-cover p-2 "
@@ -1515,6 +1652,20 @@ export default function ProductDetailPage({
         src={"/tiles/" + "600x600/Salted concreto crema 600x900 x 20mm (1).jpeg".split('/').map(s => encodeURIComponent(s)).join('/')}
         alt="Salted Concreto Horizontal Preview"
         className="w-full h-auto object-contain max-h-[500px]"
+      />
+    </div>
+  </div>
+)}
+
+{/* Dynamic Preview Image */}
+{previewUrl && !isAurlProduct && !isPaveProduct && !isSaltedProduct && (
+  <div className="max-w-[1440px] mx-auto px-6 md:px-14 pb-16 pt-10 border-t border-gray-100">
+    <h3 className="text-2xl font-serif text-[#4a2c2a] mb-8 text-center">Room Preview</h3>
+    <div className="w-full bg-[#fbfbfb] rounded-sm overflow-hidden flex items-center justify-center p-4">
+      <img
+        src={previewUrl}
+        alt={`${displayName} Room Preview`}
+        className="w-full h-auto object-contain max-h-[600px]"
       />
     </div>
   </div>

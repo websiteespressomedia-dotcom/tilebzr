@@ -88,7 +88,7 @@ export default function AboutSection() {
           <div className="relative w-full lg:w-1/2 group">
             <div className="relative aspect-[4/5] overflow-hidden rounded-sm shadow-sm">
               <Image
-                src="/images/about-tiles.png" 
+                src="/images/about_tiles.png" 
                 alt="TileBazaar Bulk Supply"
                 fill
                 className="object-cover transition-transform duration-1000 group-hover:scale-105"

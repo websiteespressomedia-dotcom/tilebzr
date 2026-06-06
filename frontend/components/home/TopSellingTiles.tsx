@@ -229,6 +229,8 @@ import { addToCartAsync } from '@/store/slices/cartSlice';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
+import previewMap from '@/app/previewMap.json';
+
 const ALL_PRODUCTS = [
   { name: "POSTER-001", size: "600x1200 mm", price: "15", reviews: 52, img: "/tiles/600x1200/POSTER-001--PUNCHGL.jpg" },
   { name: "ALEXA BEIGE_R1", size: "600x600 mm", price: "15", reviews: 52, img: "/tiles/600x600/ALEXA BEIGE_R1--GLOSS.jpg" },
@@ -329,17 +331,37 @@ export default function TopSellingTiles() {
                   viewport={{ once: true, amount: 0.1 }}
                 >
                   
-                  {/* Container designed to handle both 600x600 and 600x1200 */}
                   <div className="relative aspect-[3/4] flex items-center justify-center bg-[#FBFBFB] mb-5 p-6 rounded-[4px] overflow-hidden">
-                    <Image 
-                      src={tile.img} 
-                      alt={tile.name}
-                      width={280}
-                      height={200}
-                      className="transition-transform duration-700 group-hover/card:scale-105 object-contain max-h-full w-auto"
-                    />
+                    {/* Map fileNameOnly from tile.img */}
+                    {(() => {
+                      const fileNameOnly = tile.img.split('/').pop() || tile.img;
+                      const cleanName = fileNameOnly.split('--')[0].replace(/\.[^/.]+$/, "").replace(/[-_\s]/g, "").toLowerCase();
+                      const previewKey = Object.keys(previewMap).find(k => cleanName.includes(k) || k.includes(cleanName) || cleanName.slice(0,-2) === k.slice(0,-2));
+                      const previewUrl = previewKey ? (previewMap as any)[previewKey] : null;
+
+                      return (
+                        <>
+                          <Image 
+                            src={tile.img} 
+                            alt={tile.name}
+                            width={280}
+                            height={200}
+                            className={`transition-opacity duration-300 object-contain max-h-full w-auto ${previewUrl ? 'group-hover/card:opacity-0' : 'group-hover/card:scale-105'}`}
+                          />
+                          {previewUrl && (
+                            <Image
+                              src={previewUrl}
+                              alt={`${tile.name} Preview`}
+                              fill
+                              sizes="(max-width: 768px) 100vw, 300px"
+                              className="object-cover absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 z-10"
+                            />
+                          )}
+                        </>
+                      );
+                    })()}
                     {isPOA && (
-                      <div className="absolute top-3 left-3 bg-[#4a2c2a] text-white text-[9px] font-bold px-2 py-1 uppercase tracking-tighter">
+                      <div className="absolute top-3 left-3 bg-[#4a2c2a] text-white text-[9px] font-bold px-2 py-1 uppercase tracking-tighter z-30">
                         Consult Only
                       </div>
                     )}

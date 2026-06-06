@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import AddToCartButton from "@/components/common/AddToCartButton";
 import { useSearchParams, usePathname } from "next/navigation";
+import previewMap from "@/app/previewMap.json";
 
 interface TileGalleryProps {
   initialImages?: string[];
@@ -54,12 +55,148 @@ const getProductDetails = (fileName: string) => {
   return { price: 15, unit: "m²", isAccessory: false };
 };
 
+const getPreviewUrl = (fileName: string): string | null => {
+  const fileNameOnly = fileName.split("?")[0].split("/").pop() || fileName;
+  
+  // Normalize helper
+  const normalize = (name: string) =>
+    name
+      .toLowerCase()
+      .replace(/\.[^/.]+$/, "") // remove extension
+      .split("--")[0]           // remove suffix like --GLOSS
+      .replace(/[-_\s]/g, "");  // remove spaces, hyphens, underscores
+
+  const normalizedFile = normalize(fileNameOnly);
+
+  const singleTiles = [
+    "Levento_black_3_mo_1_preview.png",
+    "alexa_beige_r1_preview.png",
+    "alexa_brown_r1_preview.png",
+    "el_bricko_light_r1_preview.png",
+    "el_smog_gold_1.png",
+    "el_smog_gris_1_preview.png",
+    "emparador_brown_r1_preview.png",
+    "lux_09_r1_preview.png"
+  ];
+
+  const comboTiles = [
+    "ARTOVEL-018-HL.jpg",
+    "EARTHARO BRWON F1.jpg",
+    "GL-2509-DECOR.jpg",
+    "GL-2511-DECOR.jpg",
+    "GL-2513-DECORE.jpg",
+    "GL-2514-DECORE.jpg",
+    "PHANTOM DECOR.jpg",
+    "PRIZMA 08 HL.jpg",
+    "PRIZMA 26 HL.jpg",
+    "PRIZMA 27 HL.jpg",
+    "VECTRO 1502 HL-2 PUNCH.jpg",
+    "VECTRO-11003-HL.jpg",
+    "VECTRO-11051-HL.jpg",
+    "VECTRO-11080-HL-1.jpg",
+    "VECTRO-11110-HL.jpg",
+    "WAVES HL.jpg",
+    "WAVES NERO F1.jpg"
+  ];
+
+  // 1. Check single_tiles
+  for (const preview of singleTiles) {
+    let normPreview = normalize(preview);
+    if (normPreview.endsWith("preview")) {
+      normPreview = normPreview.slice(0, -7);
+    }
+    
+    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+      return `/previews/600x1200/single_tiles/${preview}`;
+    }
+  }
+
+  // 2. Check leftSideVariantsGroup for combo_tiles
+  const leftSideVariantsGroup = [
+    ["artovel 018 dk", "artovel 018 hl"],
+    ["earharo hl", "eartharo brwon f1", "earharo brown f1"],
+    ["el glitter aqua"],
+    ["gl 2509 decor", "gl 2509 lt"],
+    ["gl 2511 decor", "gl 2511 lt"],
+    ["gl 2513 decore", "gl 2513 lt"],
+    ["gl 2514 decore", "gl 2514 lt"],
+    ["emparador brown"],
+    ["irish red mp 1", "levanto black 3 mo 1"],
+    ["luxurious blue"],
+    ["phantom decor", "phantom onyx white"],
+    ["prizma 08 hl", "prizma 08 lt"],
+    ["prizma 26 hl", "prizma 26 lt"],
+    ["prizma 27 hl", "prizma 27 lt"],
+    ["vectro 1502 hl 2 punch", "vectro 1502 lt"],
+    ["vectro 11003 dk", "vectro 11003 hl"],
+    ["vectro 11051 hl", "vectro 11051 lt"],
+    ["vectro 11080 hl 1", "vectro 11080 hl 2", "vectro 11080 lt"],
+    ["vectro 11083 a", "vectro 11083 b", "vectro 11083 c"],
+    ["vectro 11110 hl", "vectro 11110 lt"],
+    ["waves hl", "waves nero f1"]
+  ];
+
+  const getVariantMatchName = (name: string) =>
+    name
+      .split("--")[0]
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[-_]/g, " ")
+      .replace(/\bR[1-9]\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+
+  const currentVariantMatch = getVariantMatchName(fileNameOnly);
+  
+  const matchedGroup = leftSideVariantsGroup.find((group) =>
+    group.some((item) => item.toLowerCase() === currentVariantMatch)
+  );
+
+  if (matchedGroup) {
+    // Try current variant match first
+    for (const preview of comboTiles) {
+      const normPreview = normalize(preview);
+      for (const item of matchedGroup) {
+        const normItem = normalize(item);
+        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+          if (currentVariantMatch === item.toLowerCase()) {
+            if (normPreview === normalize(currentVariantMatch)) {
+              return `/previews/600x1200/combo_tiles/${preview}`;
+            }
+          }
+        }
+      }
+    }
+    // Fall back to any group match
+    for (const preview of comboTiles) {
+      const normPreview = normalize(preview);
+      for (const item of matchedGroup) {
+        const normItem = normalize(item);
+        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+          return `/previews/600x1200/combo_tiles/${preview}`;
+        }
+      }
+    }
+  }
+
+  // 3. Direct match combo_tiles
+  for (const preview of comboTiles) {
+    const normPreview = normalize(preview);
+    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+      return `/previews/600x1200/combo_tiles/${preview}`;
+    }
+  }
+
+  return null;
+};
+
 export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
   const finishFilter = searchParams.get("finish");
   const sizeFilter = searchParams.get("size");
+  const placementFilter = searchParams.get("placement");
 
   const accessoriesList = [
     { id: "trim", name: "Tile Trims" },
@@ -224,19 +361,34 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
           upperName.includes("MATTING");
         if (isAccessory) return false;
 
+        // Fetch category from Supabase-mapped image query params
+        let category = "";
+        if (img.includes("?")) {
+          const params = new URLSearchParams(img.split("?")[1]);
+          if (params.has("category")) {
+            category = params.get("category")!;
+          }
+        }
+
+        const isOutdoor = category.toLowerCase() === "outdoor tiles";
+        const matchesPlacement =
+          !placementFilter ||
+          (placementFilter === "outdoor" && isOutdoor) ||
+          (placementFilter === "indoor" && !isOutdoor);
+
         const matchesFinish =
           !finishFilter ||
           (finishFilter === "NEW ARRIVALS"
             ? upperName.startsWith("EXP") || upperName.startsWith("TC") || upperName.startsWith("AURL") || upperName.includes("PAVE") || upperName.includes("SALTED CONCRETO")
             : finish === finishFilter);
         const matchesSize = !sizeFilter || size === sizeFilter;
-        return matchesFinish && matchesSize;
+        return matchesPlacement && matchesFinish && matchesSize;
       }
     });
-  }, [finishFilter, sizeFilter, deduplicatedImages]);
+  }, [finishFilter, sizeFilter, placementFilter, deduplicatedImages]);
 
   // Helper to create URLs for filters
-  const createFilterUrl = (type: "size" | "finish", value: string | null) => {
+  const createFilterUrl = (type: "size" | "finish" | "placement", value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
     if (value) {
       params.set(type, value);
@@ -249,6 +401,7 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
       const newSizeIsAcc = value === "accessories";
       if (currentSizeIsAcc !== newSizeIsAcc) {
         params.delete("finish");
+        params.delete("placement");
       }
     }
 
@@ -257,6 +410,55 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
 
   const filterContent = (
     <div className="space-y-12">
+      {/* Placement Filter */}
+      {sizeFilter !== "accessories" && (
+        <div className="text-center">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
+            Placement
+          </p>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link
+              href={createFilterUrl("placement", null)}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                placementFilter === null
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              All Tiles
+            </Link>
+
+            <Link
+              href={createFilterUrl("placement", "indoor")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                placementFilter === "indoor"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Indoor Tiles
+            </Link>
+
+            <Link
+              href={createFilterUrl("placement", "outdoor")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                placementFilter === "outdoor"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Outdoor Tiles
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Dimensions Filter */}
       <div className="text-center">
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
@@ -447,20 +649,36 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
                category = params.get("category")!;
              }
           }
+
+          // Generate preview image
+          const previewUrl = getPreviewUrl(fileNameOnly);
+
           return (
             <div key={imageName} className="group flex flex-col">
               {/* Boxed Aspect Ratio like the original design */}
               <Link href={`/products/${encodeURIComponent(imageName)}`} className="relative w-full aspect-[5/4] bg-[#fbfbfb] flex items-center justify-center p-6 mb-5 overflow-hidden group/image cursor-pointer">
+                {/* Main Tile Image */}
                 <Image
                   src={imageName.startsWith("http") ? imageNameWithoutQuery : `/tiles/${imageNameWithoutQuery.split('/').map(s => encodeURIComponent(s)).join('/')}`}
                   alt={fileNameOnly}
                   fill
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                  className="object-contain p-8 mix-blend-multiply transition-transform duration-700 group-hover/image:scale-105"
+                  className={`object-contain p-8 mix-blend-multiply transition-opacity duration-300 ${previewUrl ? 'group-hover/image:opacity-0' : 'group-hover/image:scale-105'}`}
                 />
 
+                {/* Hover Preview Image */}
+                {previewUrl && (
+                  <Image
+                    src={previewUrl}
+                    alt={`${displayName} Preview`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                    className="object-cover absolute inset-0 opacity-0 group-hover/image:opacity-100 transition-opacity duration-500 z-10"
+                  />
+                )}
+
                 {/* View Details Overlay on Hover */}
-                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20">
+                <div className="absolute inset-0 bg-black/5 opacity-0 group-hover/image:opacity-100 transition-opacity duration-300 flex items-center justify-center z-20 pointer-events-none">
                   <span className="bg-white text-[#4a2c2a] px-6 py-3 text-[10px] font-bold uppercase tracking-widest shadow-xl transform translate-y-4 group-hover/image:translate-y-0 transition-all duration-300">
                     View Details
                   </span>

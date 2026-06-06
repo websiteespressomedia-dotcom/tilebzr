@@ -283,7 +283,7 @@ export default function CheckoutPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white pt-28 pb-20">
+    <div className="min-h-screen bg-white pt-32 md:pt-40 pb-20">
       <div className="max-w-[1300px] mx-auto px-4 md:px-10">
         
         {/* Header */}
@@ -552,14 +552,16 @@ export default function CheckoutPage() {
 
                       return (
                         <div key={item.id} className="flex gap-4 items-center">
-                          <div className="relative w-16 h-16 bg-white border border-gray-200 flex-shrink-0 rounded-sm shadow-sm overflow-hidden">
-                            <Image 
-                              src={getProductImagePath(product)} 
-                              alt={product.name} 
-                              fill 
-                              className="object-cover"
-                            />
-                            <div className="absolute -top-2 -right-2 bg-gray-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold opacity-90">
+                          <div className="relative w-16 h-16 flex-shrink-0">
+                            <div className="w-full h-full bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden relative">
+                              <Image 
+                                src={getProductImagePath(product)} 
+                                alt={product.name} 
+                                fill 
+                                className="object-cover"
+                              />
+                            </div>
+                            <div className="absolute -top-2 -right-2 bg-gray-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold opacity-90 z-10 shadow-sm">
                               {item.quantity}
                             </div>
                           </div>

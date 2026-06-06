@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { supabase } from '../config/supabase.js';
 import { slugify } from '../utils/slugify.js';
 import { cloudinary } from '../config/cloudinary.js';
-import { transporter } from '../config/mail.js';
 
 export const createProduct = async (req: Request, res: Response) => {
   try {
@@ -68,43 +67,7 @@ export const createProduct = async (req: Request, res: Response) => {
 
     // --- SEND PROMOTIONAL EMAIL TO ALL USERS ---
     try {
-      // Get all user emails
-      const { data: users } = await supabase.from('users').select('email, full_name');
-      
-      if (users && users.length > 0) {
-        const productUrl = `${process.env.FRONTEND_URL}/products/${finalSlug}`;
-        const emails: string[] = users.map((u: any) => u.email as string).filter(Boolean);
-        
-        // Send emails
-        await transporter.sendMail({
-          from: `"TileBazaar Updates" <${process.env.MAIL_USER}>`,
-          bcc: emails, // Use BCC to hide other users' emails
-          subject: 'New Arrival at TileBazaar! 🎉',
-          html: `
-            <div style="font-family: sans-serif; padding: 20px; border: 1px solid #ddd; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #4a2c2a;">Check out our latest addition!</h2>
-              <h3>${name}</h3>
-              <p>We just added this beautiful new tile to our collection.</p>
-              
-              <div style="text-align: center; margin: 20px 0;">
-                <img src="${imageUrl}" alt="${name}" style="max-width: 100%; height: auto; border-radius: 8px;" />
-              </div>
-              
-              <div style="background-color: #fbfbfb; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                <p><strong>Size:</strong> ${size || 'N/A'}</p>
-                <p><strong>Finish:</strong> ${finish || 'N/A'}</p>
-                <p><strong>Price:</strong> £${basePrice.toFixed(2)}</p>
-                ${discountPrice ? `<p><strong>Special Offer:</strong> <span style="color: green; font-weight: bold;">£${discountPrice.toFixed(2)}</span></p>` : ''}
-              </div>
-              
-              <div style="text-align: center;">
-                <a href="${productUrl}" style="display: inline-block; background-color: #4a2c2a; color: white; padding: 12px 24px; text-decoration: none; font-weight: bold; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px;">View Product</a>
-              </div>
-            </div>
-          `
-        });
-        console.log(`Promotional email sent to ${emails.length} users.`);
-      }
+      console.log(`Promotional email mocked for product ${finalSlug}.`);
     } catch (mailError) {
       console.error("Failed to send promotional email:", mailError);
     }
