@@ -1,11 +1,11 @@
 const ShippingPolicy = () => {
   return (
     <div className="bg-white text-black">
-      <div className="max-w-xs md:max-w-xl mx-auto pt-28">
+      <div className="max-w-xl mx-auto px-6 pt-28">
         <h1 className="text-5xl md:text-6xl pt-10 text-center font-semibold">Shipping Policy </h1>
       </div>
       <div className="text-sm tracking-wider">
-        <div className="max-w-xs md:max-w-xl mx-auto pt-4">
+        <div className="max-w-xl mx-auto px-6 pt-4">
           <div>
             <h3 className="text-4xl py-4 font-semibold">
               Shipping & Delivery Policy

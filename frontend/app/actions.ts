@@ -100,3 +100,38 @@ export async function getActiveTilePaths(): Promise<string[]> {
 
   return allFiles;
 }
+
+export async function getAllPreviewPaths(): Promise<string[]> {
+  const previewsDirectory = path.join(process.cwd(), "public/previews");
+  let allFiles: string[] = [];
+
+  const getFilesRecursively = (dir: string): string[] => {
+    let results: string[] = [];
+    if (!fs.existsSync(dir)) return results;
+
+    const list = fs.readdirSync(dir);
+    list.forEach((file) => {
+      const filePath = path.join(dir, file);
+      const stat = fs.statSync(filePath);
+
+      if (stat && stat.isDirectory()) {
+        results = results.concat(getFilesRecursively(filePath));
+      } else if (/\.(jpg|jpeg|png|webp|avif)$/i.test(file)) {
+        const relativePath = path.relative(previewsDirectory, filePath);
+        const mtime = stat.mtimeMs ? Math.round(stat.mtimeMs) : Date.now();
+        results.push(`${relativePath.replace(/\\/g, '/')}?t=${mtime}`);
+      }
+    });
+
+    return results;
+  };
+
+  try {
+    allFiles = getFilesRecursively(previewsDirectory);
+  } catch (e) {
+    console.error("Error reading previews directory:", e);
+  }
+
+  return allFiles;
+}
+

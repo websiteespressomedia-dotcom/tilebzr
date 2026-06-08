@@ -18,7 +18,7 @@ export default function PromoPopup() {
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm animate-in fade-in duration-500">
-      <div className="relative w-full max-w-[760px] overflow-hidden bg-white shadow-2xl md:flex">
+      <div className="relative w-full max-w-[760px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl md:flex">
         
         {/* Close Button */}
         <button

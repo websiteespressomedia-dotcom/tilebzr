@@ -203,7 +203,7 @@ export default function Footer() {
                   placeholder="Professional Email"
                   className="bg-white flex-grow px-4 py-4 outline-none text-[12px] placeholder:text-[#4a2c2a]/40"
                 />
-                <button className="bg-[#4a2c2a] text-white px-8 py-4 text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-colors">
+                <button className="bg-[#4a2c2a] text-white px-4 sm:px-8 py-4 text-[11px] font-bold uppercase tracking-widest hover:bg-black transition-colors">
                   Subscribe
                 </button>
               </div>

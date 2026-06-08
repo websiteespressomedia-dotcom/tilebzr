@@ -119,7 +119,42 @@ export default function TilePackCalculator({
         </p>
       </div>
 
-      <div>
+      <div className="md:hidden space-y-4">
+        {PACK_PRESETS.map((row, idx) => {
+          const qty = quantities[row.boxes] || 0;
+          const rowPrice = row.area * pricePerM2;
+          const actualPieces = row.boxes * piecesPerBox;
+
+          return (
+            <div key={idx} className="bg-white p-4 rounded-sm border border-gray-100 flex items-center justify-between gap-4 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <span className="text-[14px] font-bold text-[#4a2c2a]">{row.area.toFixed(2)} m²</span>
+                <span className="text-[11px] text-gray-500 font-medium">{actualPieces} pcs • £{rowPrice.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleQtyChange(row.boxes, -1)}
+                  className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-sm text-gray-400 bg-white hover:border-gray-300 disabled:opacity-50 transition-colors"
+                  disabled={qty <= 0}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4"></path></svg>
+                </button>
+                <span className="w-4 text-center text-[12px] font-bold text-[#4a2c2a]">
+                  {qty}
+                </span>
+                <button
+                  onClick={() => handleQtyChange(row.boxes, 1)}
+                  className="w-8 h-8 flex items-center justify-center rounded-sm text-white bg-[#4a2c2a] hover:bg-[#3a1c1a] transition-colors shadow-sm"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="hidden md:block border-t border-gray-100 mt-2">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-gray-200">

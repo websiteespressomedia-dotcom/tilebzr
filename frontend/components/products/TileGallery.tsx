@@ -9,6 +9,7 @@ import previewMap from "@/app/previewMap.json";
 
 interface TileGalleryProps {
   initialImages?: string[];
+  initialPreviews?: string[];
 }
 
 const getFinish = (fileName: string) => {
@@ -55,49 +56,62 @@ const getProductDetails = (fileName: string) => {
   return { price: 15, unit: "m²", isAccessory: false };
 };
 
-const getPreviewUrl = (fileName: string): string | null => {
-  const fileNameOnly = fileName.split("?")[0].split("/").pop() || fileName;
-  
+const getPreviewUrl = (
+  fileNameOnly: string,
+  size: string,
+  previewPaths: string[]
+): string | null => {
+  if (!previewPaths || previewPaths.length === 0) return null;
+
   // Normalize helper
-  const normalize = (name: string) =>
-    name
+  const normalize = (name: string) => {
+    const nameWithoutQuery = name.split("?")[0];
+    return nameWithoutQuery
       .toLowerCase()
       .replace(/\.[^/.]+$/, "") // remove extension
       .split("--")[0]           // remove suffix like --GLOSS
-      .replace(/[-_\s]/g, "");  // remove spaces, hyphens, underscores
+      .replace(/[-_\s'’]/g, "");  // remove spaces, hyphens, underscores, quotes
+  };
 
-  const normalizedFile = normalize(fileNameOnly);
+  let normalizedFile = normalize(fileNameOnly);
+  if (normalizedFile === "lux09r1") {
+    normalizedFile = "lux09hl1";
+  }
+  if (normalizedFile.includes("salted") && (normalizedFile.includes("concreto") || normalizedFile.includes("concrete"))) {
+    normalizedFile = "saltedconcretecrema";
+  }
+  if (normalizedFile === "artefluowhite1") {
+    normalizedFile = "artefluowhiter1";
+  }
+  if (normalizedFile.startsWith("phantom")) {
+    normalizedFile = "phantomdecor";
+  }
+  const targetSize = size.toLowerCase().replace(/\s/g, ""); // e.g. "600x600" or "600x1200"
 
-  const singleTiles = [
-    "Levento_black_3_mo_1_preview.png",
-    "alexa_beige_r1_preview.png",
-    "alexa_brown_r1_preview.png",
-    "el_bricko_light_r1_preview.png",
-    "el_smog_gold_1.png",
-    "el_smog_gris_1_preview.png",
-    "emparador_brown_r1_preview.png",
-    "lux_09_r1_preview.png"
-  ];
+  // Filter preview paths to only include paths matching the target size folder
+  const sizeFilteredPaths = previewPaths.filter((p) => {
+    const normP = p.replace(/\\/g, "/");
+    return normP.startsWith(`${targetSize}/`);
+  });
 
-  const comboTiles = [
-    "ARTOVEL-018-HL.jpg",
-    "EARTHARO BRWON F1.jpg",
-    "GL-2509-DECOR.jpg",
-    "GL-2511-DECOR.jpg",
-    "GL-2513-DECORE.jpg",
-    "GL-2514-DECORE.jpg",
-    "PHANTOM DECOR.jpg",
-    "PRIZMA 08 HL.jpg",
-    "PRIZMA 26 HL.jpg",
-    "PRIZMA 27 HL.jpg",
-    "VECTRO 1502 HL-2 PUNCH.jpg",
-    "VECTRO-11003-HL.jpg",
-    "VECTRO-11051-HL.jpg",
-    "VECTRO-11080-HL-1.jpg",
-    "VECTRO-11110-HL.jpg",
-    "WAVES HL.jpg",
-    "WAVES NERO F1.jpg"
-  ];
+  if (sizeFilteredPaths.length === 0) return null;
+
+  // Split into single_tiles and combo_tiles preview arrays for the current size
+  const singleTiles: string[] = [];
+  const comboTiles: string[] = [];
+
+  for (const pathStr of sizeFilteredPaths) {
+    const parts = pathStr.replace(/\\/g, "/").split("/");
+    const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
+    const file = parts[2];   // e.g. "alexa_beige_r1_preview.png"
+    if (file) {
+      if (folder === "single_tiles") {
+        singleTiles.push(file);
+      } else if (folder === "combo_tiles") {
+        comboTiles.push(file);
+      }
+    }
+  }
 
   // 1. Check single_tiles
   for (const preview of singleTiles) {
@@ -106,8 +120,22 @@ const getPreviewUrl = (fileName: string): string | null => {
       normPreview = normPreview.slice(0, -7);
     }
     
+    // Custom logic for matching aurl grigio in single_tiles
+    if (normalizedFile.includes("aurl") && normalizedFile.includes("grigio")) {
+      if (normPreview.includes("aurl") && normPreview.includes("grigio")) {
+        return `/previews/${targetSize}/single_tiles/${preview}`;
+      }
+    }
+    
+    // Custom logic for matching pave paris in single_tiles
+    if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
+      if (normPreview.includes("pave") && normPreview.includes("paris")) {
+        return `/previews/${targetSize}/single_tiles/${preview}`;
+      }
+    }
+    
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/600x1200/single_tiles/${preview}`;
+      return `/previews/${targetSize}/single_tiles/${preview}`;
     }
   }
 
@@ -161,7 +189,7 @@ const getPreviewUrl = (fileName: string): string | null => {
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
           if (currentVariantMatch === item.toLowerCase()) {
             if (normPreview === normalize(currentVariantMatch)) {
-              return `/previews/600x1200/combo_tiles/${preview}`;
+              return `/previews/${targetSize}/combo_tiles/${preview}`;
             }
           }
         }
@@ -173,7 +201,7 @@ const getPreviewUrl = (fileName: string): string | null => {
       for (const item of matchedGroup) {
         const normItem = normalize(item);
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          return `/previews/600x1200/combo_tiles/${preview}`;
+          return `/previews/${targetSize}/combo_tiles/${preview}`;
         }
       }
     }
@@ -183,14 +211,24 @@ const getPreviewUrl = (fileName: string): string | null => {
   for (const preview of comboTiles) {
     const normPreview = normalize(preview);
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/600x1200/combo_tiles/${preview}`;
+      return `/previews/${targetSize}/combo_tiles/${preview}`;
     }
   }
 
   return null;
 };
 
-export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
+export default function TileGallery({ initialImages = [], initialPreviews = [] }: TileGalleryProps) {
+  const [previewPaths, setPreviewPaths] = useState<string[]>(initialPreviews);
+
+  useEffect(() => {
+    if (initialPreviews.length === 0) {
+      import("@/app/actions").then((module) => {
+        module.getAllPreviewPaths().then((paths) => setPreviewPaths(paths));
+      });
+    }
+  }, [initialPreviews]);
+
   const searchParams = useSearchParams();
   const pathname = usePathname();
 
@@ -650,8 +688,17 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
              }
           }
 
+          // Determine dimensions
+          let dimension = "N/A";
+          if (imageName.includes("?size=")) {
+            dimension = imageName.split("?size=")[1].split("&")[0];
+          } else if (!imageName.startsWith("http")) {
+            dimension = imageName.split("/")[0].split("?")[0] || "N/A";
+          }
+          dimension = dimension.toUpperCase();
+
           // Generate preview image
-          const previewUrl = getPreviewUrl(fileNameOnly);
+          const previewUrl = getPreviewUrl(fileNameOnly, dimension, previewPaths);
 
           return (
             <div key={imageName} className="group flex flex-col">
@@ -668,12 +715,10 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
 
                 {/* Hover Preview Image */}
                 {previewUrl && (
-                  <Image
+                  <img
                     src={previewUrl}
                     alt={`${displayName} Preview`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    className="object-cover absolute inset-0 opacity-0 group-hover/image:opacity-100 transition-opacity duration-500 z-10"
+                    className="object-cover absolute inset-0 w-full h-full opacity-0 group-hover/image:opacity-100 transition-opacity duration-500 z-10"
                   />
                 )}
 
@@ -747,9 +792,10 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
 
       {/* Mobile Overlay */}
       <div
-        className={`fixed inset-0 bg-white z-[100] p-8 transition-transform duration-500 ease-in-out ${isMobileFilterOpen ? "translate-y-0" : "translate-y-full"}`}
+        className={`fixed inset-0 bg-white z-[100] transition-transform duration-500 ease-in-out flex flex-col ${isMobileFilterOpen ? "translate-y-0" : "translate-y-full"}`}
       >
-        <div className="flex justify-between items-center mb-12">
+        {/* Mobile Header */}
+        <div className="flex justify-between items-center p-8 pb-4 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-3xl font-serif text-[#4a2c2a]">
             Collection Filters
           </h2>
@@ -769,15 +815,23 @@ export default function TileGallery({ initialImages = [] }: TileGalleryProps) {
             </svg>
           </button>
         </div>
-        {filterContent}
-        <button
-          onClick={() => setIsMobileFilterOpen(false)}
-          className="w-full absolute bottom-8 left-0 px-8"
-        >
-          <div className="bg-[#4a2c2a] text-white py-5 rounded-sm text-[11px] font-bold uppercase tracking-widest text-center shadow-xl">
-            View {filteredTiles.length} Masterpieces
-          </div>
-        </button>
+
+        {/* Scrollable Filters Content */}
+        <div className="flex-grow overflow-y-auto p-8 pb-12">
+          {filterContent}
+        </div>
+
+        {/* Sticky Mobile Footer */}
+        <div className="p-8 border-t border-gray-100 flex-shrink-0 bg-white shadow-lg">
+          <button
+            onClick={() => setIsMobileFilterOpen(false)}
+            className="w-full"
+          >
+            <div className="bg-[#4a2c2a] text-white py-5 rounded-sm text-[11px] font-bold uppercase tracking-widest text-center shadow-xl">
+              View {filteredTiles.length} Masterpieces
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Scroll to top */}

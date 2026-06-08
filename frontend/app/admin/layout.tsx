@@ -73,6 +73,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const handleSignOut = async () => {
     if (user?.email) {
       try {
@@ -137,9 +138,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className="flex h-screen bg-[#F9F9F9] text-[#4a2c2a]">
+    <div className="flex h-screen bg-[#F9F9F9] text-[#4a2c2a] relative">
+      {/* MOBILE SIDEBAR BACKDROP */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="w-64 bg-[#4a2c2a] text-white flex flex-col shadow-2xl">
+      <aside className={`fixed md:relative inset-y-0 left-0 z-50 w-64 bg-[#4a2c2a] text-white flex flex-col shadow-2xl transition-transform duration-300 transform md:transform-none ${isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}>
         <div className="p-8">
           <h2 className="text-xl font-serif tracking-tight">TileBazaar</h2>
           <p className="text-[8px] uppercase tracking-[0.3em] opacity-40 mt-1">Systems Admin</p>
@@ -153,6 +162,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={link.name}
                 href={link.href}
+                onClick={() => setIsSidebarOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 text-[10px] uppercase tracking-widest font-bold transition-all ${
                   isActive 
                     ? "bg-white text-[#4a2c2a] rounded-sm shadow-lg" 
@@ -181,24 +191,33 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* MAIN VIEW */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-10">
-          <div className="flex flex-col">
-            <span className="text-[9px] uppercase tracking-widest opacity-40 font-bold">Location</span>
-            <span className="text-xs font-medium">Main Dashboard / {navLinks.find(l => l.href === pathname)?.name}</span>
+        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-6 md:px-10">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1 hover:opacity-60 md:hidden block text-[#4a2c2a]"
+              aria-label="Open Sidebar"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div className="flex flex-col text-left">
+              <span className="text-[9px] uppercase tracking-widest opacity-40 font-bold">Location</span>
+              <span className="text-xs font-medium">Main Dashboard / {navLinks.find(l => l.href === pathname)?.name}</span>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
-            <div className="text-right">
+            <div className="text-right hidden sm:block">
               <p className="text-xs font-bold uppercase tracking-tighter">{user.full_name}</p>
               <p className="text-[9px] opacity-40 uppercase">Administrator</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-[#4a2c2a] text-white flex items-center justify-center font-serif">
+            <div className="w-10 h-10 rounded-full bg-[#4a2c2a] text-white flex items-center justify-center font-serif flex-shrink-0">
               {user.full_name?.[0]}
             </div>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-10">
+        <main className="flex-1 overflow-y-auto p-6 md:p-10">
           {children}
         </main>
       </div>

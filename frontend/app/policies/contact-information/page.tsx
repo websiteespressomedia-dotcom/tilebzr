@@ -1,11 +1,11 @@
 const ContactInformation = () => {
   return (
     <div className="bg-white text-black">
-      <div className="max-w-xs md:max-w-xl mx-auto pt-28">
+      <div className="max-w-xl mx-auto px-6 pt-28">
         <h1 className="text-5xl md:text-6xl text-center pt-10 font-semibold">Contact Information </h1>
       </div>
       <div className="text-sm tracking-wider">
-        <div className="max-w-xs md:max-w-xl mx-auto pt-4">
+        <div className="max-w-xl mx-auto px-6 pt-4">
           <div>
             <p>Trade name: Tile Bazaar</p>
             <br />

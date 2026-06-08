@@ -227,49 +227,62 @@ const getCategory = (fileName: string) => {
   return "Premium Collection";
 };
 
-const getPreviewUrl = (fileName: string): string | null => {
-  const fileNameOnly = fileName.split("?")[0].split("/").pop() || fileName;
-  
+const getPreviewUrl = (
+  fileNameOnly: string,
+  size: string,
+  previewPaths: string[]
+): string | null => {
+  if (!previewPaths || previewPaths.length === 0) return null;
+
   // Normalize helper
-  const normalize = (name: string) =>
-    name
+  const normalize = (name: string) => {
+    const nameWithoutQuery = name.split("?")[0];
+    return nameWithoutQuery
       .toLowerCase()
       .replace(/\.[^/.]+$/, "") // remove extension
       .split("--")[0]           // remove suffix like --GLOSS
-      .replace(/[-_\s]/g, "");  // remove spaces, hyphens, underscores
+      .replace(/[-_\s'’]/g, "");  // remove spaces, hyphens, underscores, quotes
+  };
 
-  const normalizedFile = normalize(fileNameOnly);
+  let normalizedFile = normalize(fileNameOnly);
+  if (normalizedFile === "lux09r1") {
+    normalizedFile = "lux09hl1";
+  }
+  if (normalizedFile.includes("salted") && (normalizedFile.includes("concreto") || normalizedFile.includes("concrete"))) {
+    normalizedFile = "saltedconcretecrema";
+  }
+  if (normalizedFile === "artefluowhite1") {
+    normalizedFile = "artefluowhiter1";
+  }
+  if (normalizedFile.startsWith("phantom")) {
+    normalizedFile = "phantomdecor";
+  }
+  const targetSize = size.toLowerCase().replace(/\s/g, ""); // e.g. "600x600" or "600x1200"
 
-  const singleTiles = [
-    "Levento_black_3_mo_1_preview.png",
-    "alexa_beige_r1_preview.png",
-    "alexa_brown_r1_preview.png",
-    "el_bricko_light_r1_preview.png",
-    "el_smog_gold_1.png",
-    "el_smog_gris_1_preview.png",
-    "emparador_brown_r1_preview.png",
-    "lux_09_r1_preview.png"
-  ];
+  // Filter preview paths to only include paths matching the target size folder
+  const sizeFilteredPaths = previewPaths.filter((p) => {
+    const normP = p.replace(/\\/g, "/");
+    return normP.startsWith(`${targetSize}/`);
+  });
 
-  const comboTiles = [
-    "ARTOVEL-018-HL.jpg",
-    "EARTHARO BRWON F1.jpg",
-    "GL-2509-DECOR.jpg",
-    "GL-2511-DECOR.jpg",
-    "GL-2513-DECORE.jpg",
-    "GL-2514-DECORE.jpg",
-    "PHANTOM DECOR.jpg",
-    "PRIZMA 08 HL.jpg",
-    "PRIZMA 26 HL.jpg",
-    "PRIZMA 27 HL.jpg",
-    "VECTRO 1502 HL-2 PUNCH.jpg",
-    "VECTRO-11003-HL.jpg",
-    "VECTRO-11051-HL.jpg",
-    "VECTRO-11080-HL-1.jpg",
-    "VECTRO-11110-HL.jpg",
-    "WAVES HL.jpg",
-    "WAVES NERO F1.jpg"
-  ];
+  if (sizeFilteredPaths.length === 0) return null;
+
+  // Split into single_tiles and combo_tiles preview arrays for the current size
+  const singleTiles: string[] = [];
+  const comboTiles: string[] = [];
+
+  for (const pathStr of sizeFilteredPaths) {
+    const parts = pathStr.replace(/\\/g, "/").split("/");
+    const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
+    const file = parts[2];   // e.g. "alexa_beige_r1_preview.png"
+    if (file) {
+      if (folder === "single_tiles") {
+        singleTiles.push(file);
+      } else if (folder === "combo_tiles") {
+        comboTiles.push(file);
+      }
+    }
+  }
 
   // 1. Check single_tiles
   for (const preview of singleTiles) {
@@ -278,8 +291,22 @@ const getPreviewUrl = (fileName: string): string | null => {
       normPreview = normPreview.slice(0, -7);
     }
     
+    // Custom logic for matching aurl grigio in single_tiles
+    if (normalizedFile.includes("aurl") && normalizedFile.includes("grigio")) {
+      if (normPreview.includes("aurl") && normPreview.includes("grigio")) {
+        return `/previews/${targetSize}/single_tiles/${preview}`;
+      }
+    }
+    
+    // Custom logic for matching pave paris in single_tiles
+    if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
+      if (normPreview.includes("pave") && normPreview.includes("paris")) {
+        return `/previews/${targetSize}/single_tiles/${preview}`;
+      }
+    }
+    
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/600x1200/single_tiles/${preview}`;
+      return `/previews/${targetSize}/single_tiles/${preview}`;
     }
   }
 
@@ -333,7 +360,7 @@ const getPreviewUrl = (fileName: string): string | null => {
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
           if (currentVariantMatch === item.toLowerCase()) {
             if (normPreview === normalize(currentVariantMatch)) {
-              return `/previews/600x1200/combo_tiles/${preview}`;
+              return `/previews/${targetSize}/combo_tiles/${preview}`;
             }
           }
         }
@@ -345,7 +372,7 @@ const getPreviewUrl = (fileName: string): string | null => {
       for (const item of matchedGroup) {
         const normItem = normalize(item);
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          return `/previews/600x1200/combo_tiles/${preview}`;
+          return `/previews/${targetSize}/combo_tiles/${preview}`;
         }
       }
     }
@@ -355,7 +382,7 @@ const getPreviewUrl = (fileName: string): string | null => {
   for (const preview of comboTiles) {
     const normPreview = normalize(preview);
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/600x1200/combo_tiles/${preview}`;
+      return `/previews/${targetSize}/combo_tiles/${preview}`;
     }
   }
 
@@ -531,8 +558,6 @@ export default function ProductDetailPage({
      }
   }
 
-  const previewUrl = getPreviewUrl(fileNameOnly);
-
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { token } = useAppSelector((state: RootState) => state.auth);
@@ -547,12 +572,16 @@ export default function ProductDetailPage({
   const [showMoreDesc, setShowMoreDesc] = useState(false);
   const [showMoreAdhesiveFeats, setShowMoreAdhesiveFeats] = useState(false);
   const [allTiles, setAllTiles] = useState<string[]>([]);
+  const [previewPaths, setPreviewPaths] = useState<string[]>([]);
 
   useEffect(() => {
     import("@/app/actions").then((module) => {
       module.getAllTilePaths().then((paths) => setAllTiles(paths));
+      module.getAllPreviewPaths().then((paths) => setPreviewPaths(paths));
     });
   }, []);
+
+  const previewUrl = getPreviewUrl(fileNameOnly, dimension, previewPaths);
 
   const currentNameLower = getVariantMatchName(fileNameOnly).toLowerCase();
   const matchedRightGroup = rightSideVariantsGroup.find((g) =>

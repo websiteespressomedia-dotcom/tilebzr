@@ -281,11 +281,11 @@ useEffect(() => {
         <div
           className={`
   fixed right-0 top-0 z-40 h-screen w-[82vw] max-w-[360px] bg-white shadow-2xl md:hidden
-  transition-transform duration-500 ease-in-out
+  transition-transform duration-500 ease-in-out overflow-y-auto
   ${isMenuOpen ? "translate-x-0" : "translate-x-full"}
 `}
         >
-          <div className="flex h-full flex-col items-end justify-center space-y-8 px-8 text-right font-serif text-[16px] uppercase tracking-[0.3em]">
+          <div className="flex min-h-full flex-col items-end justify-center space-y-8 py-12 px-8 text-right font-serif text-[16px] uppercase tracking-[0.3em]">
             {navLinks.map((link) => {
               const isActive = pathname === link.href || (link.href !== '/' && pathname?.startsWith(link.href));
               return (

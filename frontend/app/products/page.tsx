@@ -1,12 +1,13 @@
 import React, { Suspense } from "react";
 import TileGallery from "@/components/products/TileGallery";
 import ApplicationPossibilities from "@/components/home/ApplicationPossibilities";
-import { getActiveTilePaths } from "@/app/actions";
+import { getActiveTilePaths, getAllPreviewPaths } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
   const allFiles = await getActiveTilePaths();
+  const previewPaths = await getAllPreviewPaths();
 
   return (
     <div className="bg-white min-h-screen">
@@ -21,7 +22,7 @@ export default async function ProductsPage() {
           </header>
 
           <Suspense fallback={<div className="py-40 flex justify-center"><div className="animate-spin h-10 w-10 border-b-2 border-[#4a2c2a] rounded-full"></div></div>}>
-            <TileGallery initialImages={allFiles} />
+            <TileGallery initialImages={allFiles} initialPreviews={previewPaths} />
           </Suspense>
         </main>
       </section>

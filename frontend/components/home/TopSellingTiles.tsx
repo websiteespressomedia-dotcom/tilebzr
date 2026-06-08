@@ -229,7 +229,167 @@ import { addToCartAsync } from '@/store/slices/cartSlice';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
-import previewMap from '@/app/previewMap.json';
+const getPreviewUrl = (
+  fileNameOnly: string,
+  size: string,
+  previewPaths: string[]
+): string | null => {
+  if (!previewPaths || previewPaths.length === 0) return null;
+
+  // Normalize helper
+  const normalize = (name: string) => {
+    const nameWithoutQuery = name.split("?")[0];
+    return nameWithoutQuery
+      .toLowerCase()
+      .replace(/\.[^/.]+$/, "") // remove extension
+      .split("--")[0]           // remove suffix like --GLOSS
+      .replace(/[-_\s'’]/g, "");  // remove spaces, hyphens, underscores, quotes
+  };
+
+  let normalizedFile = normalize(fileNameOnly);
+  if (normalizedFile === "lux09r1") {
+    normalizedFile = "lux09hl1";
+  }
+  if (normalizedFile.includes("salted") && (normalizedFile.includes("concreto") || normalizedFile.includes("concrete"))) {
+    normalizedFile = "saltedconcretecrema";
+  }
+  if (normalizedFile === "artefluowhite1") {
+    normalizedFile = "artefluowhiter1";
+  }
+  if (normalizedFile.startsWith("phantom")) {
+    normalizedFile = "phantomdecor";
+  }
+  const targetSize = size.toLowerCase().replace(/\s/g, ""); // e.g. "600x600" or "600x1200"
+
+  // Filter preview paths to only include paths matching the target size folder
+  const sizeFilteredPaths = previewPaths.filter((p) => {
+    const normP = p.replace(/\\/g, "/");
+    return normP.startsWith(`${targetSize}/`);
+  });
+
+  if (sizeFilteredPaths.length === 0) return null;
+
+  // Split into single_tiles and combo_tiles preview arrays for the current size
+  const singleTiles: string[] = [];
+  const comboTiles: string[] = [];
+
+  for (const pathStr of sizeFilteredPaths) {
+    const parts = pathStr.replace(/\\/g, "/").split("/");
+    const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
+    const file = parts[2];   // e.g. "alexa_beige_r1_preview.png"
+    if (file) {
+      if (folder === "single_tiles") {
+        singleTiles.push(file);
+      } else if (folder === "combo_tiles") {
+        comboTiles.push(file);
+      }
+    }
+  }
+
+  // 1. Check single_tiles
+  for (const preview of singleTiles) {
+    let normPreview = normalize(preview);
+    if (normPreview.endsWith("preview")) {
+      normPreview = normPreview.slice(0, -7);
+    }
+    
+    // Custom logic for matching aurl grigio in single_tiles
+    if (normalizedFile.includes("aurl") && normalizedFile.includes("grigio")) {
+      if (normPreview.includes("aurl") && normPreview.includes("grigio")) {
+        return `/previews/${targetSize}/single_tiles/${preview}`;
+      }
+    }
+    
+    // Custom logic for matching pave paris in single_tiles
+    if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
+      if (normPreview.includes("pave") && normPreview.includes("paris")) {
+        return `/previews/${targetSize}/single_tiles/${preview}`;
+      }
+    }
+    
+    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+      return `/previews/${targetSize}/single_tiles/${preview}`;
+    }
+  }
+
+  // 2. Check leftSideVariantsGroup for combo_tiles
+  const leftSideVariantsGroup = [
+    ["artovel 018 dk", "artovel 018 hl"],
+    ["earharo hl", "eartharo brwon f1", "earharo brown f1"],
+    ["el glitter aqua"],
+    ["gl 2509 decor", "gl 2509 lt"],
+    ["gl 2511 decor", "gl 2511 lt"],
+    ["gl 2513 decore", "gl 2513 lt"],
+    ["gl 2514 decore", "gl 2514 lt"],
+    ["emparador brown"],
+    ["irish red mp 1", "levanto black 3 mo 1"],
+    ["luxurious blue"],
+    ["phantom decor", "phantom onyx white"],
+    ["prizma 08 hl", "prizma 08 lt"],
+    ["prizma 26 hl", "prizma 26 lt"],
+    ["prizma 27 hl", "prizma 27 lt"],
+    ["vectro 1502 hl 2 punch", "vectro 1502 lt"],
+    ["vectro 11003 dk", "vectro 11003 hl"],
+    ["vectro 11051 hl", "vectro 11051 lt"],
+    ["vectro 11080 hl 1", "vectro 11080 hl 2", "vectro 11080 lt"],
+    ["vectro 11083 a", "vectro 11083 b", "vectro 11083 c"],
+    ["vectro 11110 hl", "vectro 11110 lt"],
+    ["waves hl", "waves nero f1"]
+  ];
+
+  const getVariantMatchName = (name: string) =>
+    name
+      .split("--")[0]
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[-_]/g, " ")
+      .replace(/\bR[1-9]\b/gi, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+
+  const currentVariantMatch = getVariantMatchName(fileNameOnly);
+  
+  const matchedGroup = leftSideVariantsGroup.find((group) =>
+    group.some((item) => item.toLowerCase() === currentVariantMatch)
+  );
+
+  if (matchedGroup) {
+    // Try current variant match first
+    for (const preview of comboTiles) {
+      const normPreview = normalize(preview);
+      for (const item of matchedGroup) {
+        const normItem = normalize(item);
+        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+          if (currentVariantMatch === item.toLowerCase()) {
+            if (normPreview === normalize(currentVariantMatch)) {
+              return `/previews/${targetSize}/combo_tiles/${preview}`;
+            }
+          }
+        }
+      }
+    }
+    // Fall back to any group match
+    for (const preview of comboTiles) {
+      const normPreview = normalize(preview);
+      for (const item of matchedGroup) {
+        const normItem = normalize(item);
+        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+          return `/previews/${targetSize}/combo_tiles/${preview}`;
+        }
+      }
+    }
+  }
+
+  // 3. Direct match combo_tiles
+  for (const preview of comboTiles) {
+    const normPreview = normalize(preview);
+    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+      return `/previews/${targetSize}/combo_tiles/${preview}`;
+    }
+  }
+
+  return null;
+};
 
 const ALL_PRODUCTS = [
   { name: "POSTER-001", size: "600x1200 mm", price: "15", reviews: 52, img: "/tiles/600x1200/POSTER-001--PUNCHGL.jpg" },
@@ -256,6 +416,7 @@ export default function TopSellingTiles() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [randomizedTiles, setRandomizedTiles] = useState<typeof ALL_PRODUCTS>([]);
+  const [previewPaths, setPreviewPaths] = useState<string[]>([]);
   const dispatch = useAppDispatch();
   const { token } = useAppSelector((state) => state.auth);
   const { loading } = useAppSelector((state) => state.cart);
@@ -267,6 +428,9 @@ export default function TopSellingTiles() {
       setRandomizedTiles(result);
     };
     shuffle();
+    import("@/app/actions").then((module) => {
+      module.getAllPreviewPaths().then((paths) => setPreviewPaths(paths));
+    });
   }, []);
 
   const handleScroll = () => {
@@ -335,9 +499,20 @@ export default function TopSellingTiles() {
                     {/* Map fileNameOnly from tile.img */}
                     {(() => {
                       const fileNameOnly = tile.img.split('/').pop() || tile.img;
-                      const cleanName = fileNameOnly.split('--')[0].replace(/\.[^/.]+$/, "").replace(/[-_\s]/g, "").toLowerCase();
-                      const previewKey = Object.keys(previewMap).find(k => cleanName.includes(k) || k.includes(cleanName) || cleanName.slice(0,-2) === k.slice(0,-2));
-                      const previewUrl = previewKey ? (previewMap as any)[previewKey] : null;
+
+                      let dimension = "N/A";
+                      if (tile.img.includes("?size=")) {
+                        dimension = tile.img.split("?size=")[1].split("&")[0];
+                      } else if (!tile.img.startsWith("http")) {
+                        const parts = tile.img.replace(/^\//, "").split("/");
+                        dimension = parts[1] || parts[0] || "N/A";
+                      }
+                      dimension = dimension.toUpperCase();
+                      if (dimension === "TILES" || dimension === "N/A") {
+                        dimension = tile.size ? tile.size.replace(" mm", "").trim() : "N/A";
+                      }
+
+                      const previewUrl = getPreviewUrl(fileNameOnly, dimension, previewPaths);
 
                       return (
                         <>
@@ -349,12 +524,10 @@ export default function TopSellingTiles() {
                             className={`transition-opacity duration-300 object-contain max-h-full w-auto ${previewUrl ? 'group-hover/card:opacity-0' : 'group-hover/card:scale-105'}`}
                           />
                           {previewUrl && (
-                            <Image
+                            <img
                               src={previewUrl}
                               alt={`${tile.name} Preview`}
-                              fill
-                              sizes="(max-width: 768px) 100vw, 300px"
-                              className="object-cover absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 z-10"
+                              className="object-cover absolute inset-0 w-full h-full opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 z-10"
                             />
                           )}
                         </>
