@@ -260,6 +260,13 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
     const baseImages = initialImages.filter((img) => {
       const fileName = img.split("/").pop() || img;
       const upperName = fileName.toUpperCase();
+      const finish = getFinish(fileName);
+      const isAccessory = /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(upperName);
+
+      // Remove tile images that do not have a recognized finish
+      if (!isAccessory && finish === "OTHER") {
+        return false;
+      }
 
       // Only show the main AURL image in the products listing, and hide variant/grid images
       if (upperName.startsWith("AURL") && (upperName.includes("(1)") || upperName.includes("(2)") || upperName.includes("(3)") || upperName.includes("(5)"))) {
