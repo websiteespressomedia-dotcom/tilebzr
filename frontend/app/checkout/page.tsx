@@ -18,9 +18,6 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
   if (imageName.startsWith("http")) return imageName;
   
   let cleanImageName = imageName.split("?")[0];
-  if (cleanImageName === "the-popular-front--spacer.png") {
-    cleanImageName = "the-popular-front--wedge.png";
-  }
   
   let resolved = "";
   if (cleanImageName.includes("/")) {
