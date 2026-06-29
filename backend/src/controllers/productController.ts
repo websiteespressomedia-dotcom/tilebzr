@@ -150,10 +150,10 @@ const getFinishFromFilename = (fileName: string, localPath?: string): string => 
   if (name.includes("--CARVING")) return "CARVING";
   if (name.includes("--HIGHGL")) return "HIGH GLOSS";
   if (name.includes("--PUNCHGL")) return "POSTER";
-  if (name.includes("--LOVIN")) return "LOVELIN";
-  if (name.includes("--TPH")) return "TYPHOON";
+  if (name.includes("--LOVIN")) return "GLOSSY";
+  if (name.includes("--TPH")) return "GLOSSY";
   if (localPath && localPath.toLowerCase().includes("1200x1200")) return "GLOSSY";
-  return "OTHER";
+  return "GLOSSY";
 };
 
 const formatFileNameToProductName = (name: string): string => {

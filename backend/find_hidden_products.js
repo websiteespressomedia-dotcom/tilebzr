@@ -35,9 +35,9 @@ const getFinish = (fileName) => {
   if (name.includes("--CARVING")) return "CARVING";
   if (name.includes("--HIGHGL")) return "HIGH GLOSS";
   if (name.includes("--PUNCHGL")) return "POSTER";
-  if (name.includes("--LOVIN")) return "LOVELIN";
-  if (name.includes("--TPH")) return "TYPHOON";
-  return "OTHER";
+  if (name.includes("--LOVIN")) return "GLOSSY";
+  if (name.includes("--TPH")) return "GLOSSY";
+  return "GLOSSY";
 };
 
 const formatFileName = (name) => {

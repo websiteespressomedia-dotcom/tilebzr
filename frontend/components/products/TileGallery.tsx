@@ -551,11 +551,20 @@ export default function TileGallery({
           const norm = s.trim().toLowerCase();
           return norm !== "10mm x 2.5m" && norm !== "20kg" && norm !== "20 kg" && norm !== "accessories";
         })
-        .sort(),
+        .sort((a, b) => {
+          const order = ["300x600", "600x600", "600x1200", "1200x1200"];
+          const indexA = order.indexOf(a.toLowerCase().replace(/\s+/g, ""));
+          const indexB = order.indexOf(b.toLowerCase().replace(/\s+/g, ""));
+          if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+          if (indexA !== -1) return -1;
+          if (indexB !== -1) return 1;
+          return a.localeCompare(b);
+        }),
       uniqueFinishes: Array.from(finishes)
         .filter((f) => {
           const norm = f.trim().toUpperCase();
-          return norm !== "GREY" && norm !== "WHITE";
+          const excluded = ["GREY", "WHITE", "LOVELIN", "TYPHOON", "OTHER", "POSTER", "GLOSSY", "HIGH GLOSS", "MATT"];
+          return !excluded.includes(norm);
         })
         .sort(),
       uniqueComingSoonSizes: Array.from(csSizes).sort(),
@@ -607,7 +616,8 @@ export default function TileGallery({
         const matchesPlacement =
           !placementFilter ||
           (placementFilter === "outdoor" && isOutdoor) ||
-          (placementFilter === "indoor" && !isOutdoor);
+          (placementFilter === "indoor" && !isOutdoor && finishUpper !== "POSTER") ||
+          (placementFilter === "poster" && finishUpper === "POSTER");
 
         const matchesFinish =
           !finishFilter ||
@@ -655,11 +665,11 @@ export default function TileGallery({
 
   const filterContent = (
     <div className="space-y-12">
-      {/* Placement Filter */}
+      {/* Application Filter */}
       {sizeFilter !== "accessories" && finishFilter !== "COMING SOON" && (
         <div className="text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
-            Placement
+            Application
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link
@@ -699,6 +709,19 @@ export default function TileGallery({
               }`}
             >
               Outdoor Tiles
+            </Link>
+
+            <Link
+              href={createFilterUrl("placement", "poster")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                placementFilter === "poster"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Poster Tiles
             </Link>
           </div>
         </div>
@@ -860,6 +883,61 @@ export default function TileGallery({
             </Link>
 
             <Link
+              href={createFilterUrl("finish", "GLOSSY")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                finishFilter === "GLOSSY"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Glossy
+            </Link>
+
+            <Link
+              href={createFilterUrl("finish", "HIGH GLOSS")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                finishFilter === "HIGH GLOSS"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              High Gloss
+            </Link>
+
+            <Link
+              href={createFilterUrl("finish", "MATT")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                finishFilter === "MATT"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Matt
+            </Link>
+
+            {uniqueFinishes.map((finish) => (
+              <Link
+                key={finish}
+                href={createFilterUrl("finish", finish)}
+                scroll={false}
+                onClick={() => setIsMobileFilterOpen(false)}
+                className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                  finishFilter === finish
+                    ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                    : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+                }`}
+              >
+                {finish.charAt(0).toUpperCase() + finish.slice(1).toLowerCase()}
+              </Link>
+            ))}
+
+            <Link
               href={createFilterUrl("finish", "NEW ARRIVALS")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
@@ -884,21 +962,6 @@ export default function TileGallery({
             >
               Coming Soon
             </Link>
-            {uniqueFinishes.map((finish) => (
-              <Link
-                key={finish}
-                href={createFilterUrl("finish", finish)}
-                scroll={false}
-                onClick={() => setIsMobileFilterOpen(false)}
-                className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
-                  finishFilter === finish
-                    ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
-                    : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
-                }`}
-              >
-                {finish}
-              </Link>
-            ))}
           </div>
         </div>
       )}

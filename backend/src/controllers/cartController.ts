@@ -8,9 +8,9 @@ const getFinish = (fileName: string) => {
   if (name.includes("--CARVING")) return "CARVING";
   if (name.includes("--HIGHGL")) return "HIGH GLOSS";
   if (name.includes("--PUNCHGL")) return "PUNCH GLOSSY";
-  if (name.includes("--LOVIN")) return "LOVELIN";
-  if (name.includes("--TPH")) return "TYPHOON";
-  return "OTHER";
+  if (name.includes("--LOVIN")) return "GLOSSY";
+  if (name.includes("--TPH")) return "GLOSSY";
+  return "GLOSSY";
 };
 
 const getProductDetails = (fileName: string) => {

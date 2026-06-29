@@ -1,5 +1,23 @@
 [
   {
+    "id": "7bobe06w6",
+    "admin_email": "jane@tilebazaar.co.uk",
+    "admin_name": "Jane Smith",
+    "action": "LOGOUT",
+    "details": "Logged out of the system",
+    "page": "/admin",
+    "created_at": "2026-06-29T12:59:53.456Z"
+  },
+  {
+    "id": "yyz3ttec4",
+    "admin_email": "jane@tilebazaar.co.uk",
+    "admin_name": "Jane Smith",
+    "action": "LOGOUT",
+    "details": "Logged out of the system",
+    "page": "/admin",
+    "created_at": "2026-06-29T12:57:19.955Z"
+  },
+  {
     "id": "xmp9w85t2",
     "admin_email": "jane@tilebazaar.co.uk",
     "admin_name": "Jane Smith",
