@@ -11,7 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { IoTrashOutline } from "react-icons/io5";
 import { FiShoppingCart, FiChevronLeft } from "react-icons/fi";
 import { Heart } from "lucide-react";
-import { getAllTilePaths } from "@/app/actions";
+import { getActiveTilePaths } from "@/app/actions";
 
 type WishlistProduct = {
   id: string;
@@ -82,7 +82,7 @@ export default function WishlistPage() {
     } catch {
       // ignore
     }
-    getAllTilePaths().then((paths) => {
+    getActiveTilePaths().then((paths) => {
       setAllTiles(paths);
       setLoading(false);
     });
@@ -123,17 +123,24 @@ export default function WishlistPage() {
   // Add item to cart
   const handleAddToCart = async (product: WishlistProduct) => {
     if (!token) {
-      router.push("/login");
+      const continueWithoutLogin = typeof window !== "undefined" && localStorage.getItem("tb_continue_without_login") === "true";
+      if (!continueWithoutLogin) {
+        const currentPath = window.location.pathname + window.location.search;
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        return;
+      }
+      performMockAdd(product.id, getProductDetails(product.id));
+      setCartOpen(true);
       return;
     }
     try {
-      setAddingId(product.slug);
+      setAddingId(product.id);
       await dispatch(
-        addToCartAsync({ product_id: product.slug, quantity: 1 })
+        addToCartAsync({ product_id: product.id, quantity: 1 })
       ).unwrap();
       setCartOpen(true);
     } catch (err) {
-      performMockAdd(product.slug, getProductDetails(product.slug));
+      performMockAdd(product.id, getProductDetails(product.id));
       setCartOpen(true);
     } finally {
       setAddingId(null);
@@ -145,23 +152,47 @@ export default function WishlistPage() {
     if (allTiles.length === 0) return [];
     return wishlistSlugs.map((slug) => {
       // Find matching path
-      const fullPath = allTiles.find((t) => (t.split("/").pop() || t) === slug);
-      if (!fullPath) return null;
-      
+      const fullPath = allTiles.find((t) => (t.split("?")[0].split("/").pop() || t) === slug);
       if (!fullPath) return null;
 
       const fileNameOnly = slug;
       const details = getProductDetails(fileNameOnly);
-      
+
+      // Parse query parameters from fullPath if present
+      const queryString = fullPath.split("?")[1] || "";
+      const params = new URLSearchParams(queryString);
+
+      const nameParam = params.get("name");
+      const priceParam = params.get("price");
+      const discountParam = params.get("discountPrice");
+      const categoryParam = params.get("category");
+      const sizeParam = params.get("size");
+
+      const name = nameParam ? decodeURIComponent(nameParam) : formatFileName(fileNameOnly);
+      const price = priceParam ? parseFloat(priceParam) : details.price;
+      const discountPrice = discountParam ? parseFloat(discountParam) : (details.isAccessory ? 0 : price + 5);
+      const category = categoryParam ? decodeURIComponent(categoryParam) : getCategory(fileNameOnly);
+      const size = sizeParam ? decodeURIComponent(sizeParam) : (fullPath.split("/")[0] || "N/A");
+
+      const cleanPath = fullPath.split("?")[0];
+      let resolvedImage = "";
+      if (cleanPath.startsWith("http")) {
+        resolvedImage = cleanPath;
+      } else if (cleanPath.startsWith("comingsoon/")) {
+        resolvedImage = `/${cleanPath.split('/').map(s => encodeURIComponent(s)).join('/')}`;
+      } else {
+        resolvedImage = `/tiles/${cleanPath.split('/').map(s => encodeURIComponent(s)).join('/')}`;
+      }
+
       return {
         id: fileNameOnly,
-        name: formatFileName(fileNameOnly),
-        slug: fileNameOnly,
-        image: `/tiles/${fullPath}`,
-        price: details.price,
-        discount_price: details.isAccessory ? 0 : details.price + 5,
-        category: getCategory(fileNameOnly),
-        size: fullPath.split("/")[0] || "N/A",
+        name,
+        slug: fullPath,
+        image: resolvedImage,
+        price,
+        discount_price: discountPrice,
+        category,
+        size,
       };
     }).filter(Boolean) as WishlistProduct[];
   }, [wishlistSlugs, allTiles]);
@@ -216,14 +247,15 @@ export default function WishlistPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-14">
               {wishlistedProducts.map((product) => {
                 const imagePath = product.image;
-                const isPoster = product.slug.toUpperCase().includes("POSTER");
+                const isPoster = product.id.toUpperCase().includes("POSTER");
                 const price = product.price;
+                const isComingSoon = product.slug.includes("comingsoon/") || product.category === "Coming Soon";
 
                 return (
                   <div key={product.id} className="group flex flex-col relative">
                     {/* Remove Wishlist Button in Corner */}
                     <button
-                      onClick={() => handleRemove(product.slug)}
+                      onClick={() => handleRemove(product.id)}
                       className="absolute top-4 right-4 z-30 bg-white/80 backdrop-blur-md p-2.5 rounded-full text-gray-400 hover:text-red-500 shadow-md hover:scale-105 active:scale-95 transition-all"
                       title="Remove from wishlist"
                     >
@@ -232,11 +264,15 @@ export default function WishlistPage() {
 
                     {/* Image Card Container */}
                     <Link
-                      href={`/products/${encodeURIComponent(product.slug)}`}
+                      href={
+                        product.slug.includes("slug=") 
+                          ? `/products/${new URLSearchParams(product.slug.split("?")[1]).get("slug")}`
+                          : `/products/${encodeURIComponent(product.slug)}`
+                      }
                       className="relative w-full aspect-[5/4] bg-[#fbfbfb] flex items-center justify-center p-6 mb-5 overflow-hidden group/image cursor-pointer border border-gray-50 hover:border-gray-100 transition-colors"
                     >
                       <Image
-                        src={imagePath.split('/').map(s => encodeURIComponent(s)).join('/')}
+                        src={imagePath}
                         alt={product.name}
                         fill
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
@@ -253,7 +289,14 @@ export default function WishlistPage() {
 
                     {/* Meta info */}
                     <div className="flex flex-col flex-grow text-left px-2">
-                      <Link href={`/products/${encodeURIComponent(product.slug)}`} className="hover:text-[#4a2c2a]/70 transition-colors">
+                      <Link
+                        href={
+                          product.slug.includes("slug=") 
+                            ? `/products/${new URLSearchParams(product.slug.split("?")[1]).get("slug")}`
+                            : `/products/${encodeURIComponent(product.slug)}`
+                        }
+                        className="hover:text-[#4a2c2a]/70 transition-colors"
+                      >
                         <h3 className="text-[12px] font-bold uppercase mb-2">
                           {formatFileName(product.name)}
                         </h3>
@@ -264,7 +307,9 @@ export default function WishlistPage() {
                       </p>
 
                       <div className="flex items-end gap-2 mb-6">
-                        {isPoster ? (
+                        {isComingSoon ? (
+                          <span className="text-[14px] font-bold text-gray-400 uppercase tracking-wider">Coming Soon</span>
+                        ) : isPoster ? (
                           <span className="text-[16px] font-bold text-[#4a2c2a]">POA</span>
                         ) : (
                           <>
@@ -285,7 +330,14 @@ export default function WishlistPage() {
 
                       {/* Action Button */}
                       <div className="mt-auto">
-                        {isPoster ? (
+                        {isComingSoon ? (
+                          <button
+                            disabled={true}
+                            className="w-full bg-gray-50 text-gray-400 py-3.5 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed border border-gray-100"
+                          >
+                            Coming Soon
+                          </button>
+                        ) : isPoster ? (
                           <button
                             disabled={true}
                             className="w-full bg-gray-100 text-gray-400 py-3.5 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed"
@@ -295,11 +347,11 @@ export default function WishlistPage() {
                         ) : (
                           <button
                             onClick={() => handleAddToCart(product)}
-                            disabled={addingId === product.slug}
+                            disabled={addingId === product.id}
                             className="w-full bg-[#4a2c2a] text-white py-3.5 text-[10px] font-bold uppercase tracking-widest hover:bg-[#4a2c2a]/95 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
                           >
                             <FiShoppingCart size={13} />
-                            {addingId === product.slug ? "Adding..." : "Add to Cart"}
+                            {addingId === product.id ? "Adding..." : "Add to Cart"}
                           </button>
                         )}
                       </div>

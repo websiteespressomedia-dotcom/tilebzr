@@ -53,7 +53,16 @@ export default function AddToCartButton({ product }: ProductProps) {
     e.preventDefault();
 
     if (!token) {
-      router.push("/login");
+      const continueWithoutLogin = typeof window !== "undefined" && localStorage.getItem("tb_continue_without_login") === "true";
+      if (!continueWithoutLogin) {
+        const currentPath = window.location.pathname + window.location.search;
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        return;
+      }
+      performMockAdd();
+      setIsSuccess(true);
+      setCartOpen(true);
+      setTimeout(() => setIsSuccess(false), 2000);
       return;
     }
 

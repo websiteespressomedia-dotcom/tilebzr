@@ -132,7 +132,7 @@ import { useRouter } from "next/navigation";
 const getProductImagePath = (product: any) => {
   if (!product || !product.image) return "/placeholder-tile.jpg";
   if (product.image.startsWith("http")) return product.image;
-  if (product.image.startsWith("/tiles/")) return product.image;
+  if (product.image.startsWith("/")) return product.image;
   
   const category = (product.category || "").toLowerCase();
   const size = (product.size || "").toLowerCase();
@@ -210,47 +210,69 @@ export default function CartDrawer({
   const { token } = useAppSelector((state) => state.auth);
 
   // 2. MANUAL CALCULATIONS
-  const totalCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+  const totalCount = cartItems.reduce((acc, item) => {
+    const isAcc = checkIsAccessory(item.product);
+    if (isAcc) return acc + item.quantity;
+    const is600x600 = (item.product?.size || "").toLowerCase().includes("600x600");
+    const is300x600 = (item.product?.size || "").toLowerCase().includes("300x600");
+    const piecesPerBox = is600x600 ? 4 : (is300x600 ? 8 : 2);
+    const boxes = item.unit === "pieces" ? item.quantity / piecesPerBox : item.quantity;
+    return acc + boxes;
+  }, 0);
+
   const totalPrice = cartItems.reduce((acc, item) => {
     const isAcc = checkIsAccessory(item.product);
-    const multiplier = isAcc ? 1 : 1.44;
-    return (
-      acc +
-      getProductPrice(item.product) * item.quantity * multiplier
-    );
+    if (isAcc) {
+      return acc + getProductPrice(item.product) * item.quantity;
+    }
+    const is600x600 = (item.product?.size || "").toLowerCase().includes("600x600");
+    const is300x600 = (item.product?.size || "").toLowerCase().includes("300x600");
+    const piecesPerBox = is600x600 ? 4 : (is300x600 ? 8 : 2);
+    const coverage = item.unit === "pieces"
+      ? item.quantity * (1.44 / piecesPerBox)
+      : item.quantity * 1.44;
+    return acc + getProductPrice(item.product) * coverage;
   }, 0);
 
   const totalWeight = cartItems.reduce((acc, item) => {
     const product = item.product;
     const isAcc = checkIsAccessory(product);
+    if (isAcc) return acc;
     
-    // Accessories have 0 weight as requested
-    if (isAcc) {
-      return acc;
-    }
+    const is600x600 = (product?.size || "").toLowerCase().includes("600x600");
+    const is300x600 = (product?.size || "").toLowerCase().includes("300x600");
+    const piecesPerBox = is600x600 ? 4 : (is300x600 ? 8 : 2);
+    const boxes = item.unit === "pieces" ? item.quantity / piecesPerBox : item.quantity;
     
-    // Standard tile box weight (assume 1.44m2 box weighs 29kg)
-    return acc + (item.quantity * 29);
+    return acc + (boxes * 29);
   }, 0);
 
   const fullPallets = Math.floor(totalWeight / 1000);
   const remainderWeight = totalWeight % 1000;
   let partialPallet = "";
   if (remainderWeight > 0) {
-    if (remainderWeight <= 250) partialPallet = "1 QUARTER";
+    if (remainderWeight <= 30 && fullPallets === 0) partialPallet = "1 PARCEL";
+    else if (remainderWeight <= 250) partialPallet = "1 QUARTER";
     else if (remainderWeight <= 500) partialPallet = "1 HALF";
+    else if (remainderWeight <= 750) partialPallet = "1 FULL LIGHT";
     else partialPallet = "1 FULL"; 
   }
   
   let displayPallet = "0";
-  if (fullPallets > 0 && partialPallet && partialPallet !== "1 FULL") {
+  if (fullPallets > 0) {
+    if (partialPallet && partialPallet !== "1 FULL") {
       displayPallet = `${fullPallets} FULL & ${partialPallet}`;
-  } else if (fullPallets > 0 && partialPallet === "1 FULL") {
+    } else if (partialPallet === "1 FULL") {
       displayPallet = `${fullPallets + 1} FULL`;
-  } else if (fullPallets > 0) {
+    } else {
       displayPallet = `${fullPallets} FULL`;
-  } else if (partialPallet) {
-      displayPallet = `0 FULL & ${partialPallet}`;
+    }
+  } else {
+    if (partialPallet) {
+      displayPallet = partialPallet;
+    } else {
+      displayPallet = "0";
+    }
   }
 
   useEffect(() => {
@@ -385,9 +407,19 @@ export default function CartDrawer({
                       <span className="text-[12px] font-bold">
                         £{getProductPrice(product).toFixed(2)} {checkIsAccessory(product) ? "" : "/m²"}
                       </span>
-                      {checkIsAccessory(product) 
-                        ? "" 
-                        : ` • ${product.size || "600x1200"} • ${(item.quantity * 1.44).toFixed(2)} SQM (${item.quantity} boxes)`}
+                      {(() => {
+                        if (checkIsAccessory(product)) return "";
+                        const is600x600 = (product.size || "").toLowerCase().includes("600x600");
+                        const is300x600 = (product.size || "").toLowerCase().includes("300x600");
+                        const piecesPerBox = is600x600 ? 4 : (is300x600 ? 8 : 2);
+                        if (item.unit === "pieces") {
+                          const sqm = item.quantity * (1.44 / piecesPerBox);
+                          return ` • ${product.size || "600x1200"} • ${sqm.toFixed(2)} SQM (${item.quantity} pcs)`;
+                        } else {
+                          const sqm = item.quantity * 1.44;
+                          return ` • ${product.size || "600x1200"} • ${sqm.toFixed(2)} SQM (${item.quantity} boxes)`;
+                        }
+                      })()}
                     </p>
 
                     <div className="flex items-center justify-between mt-auto pt-4">
@@ -416,8 +448,11 @@ export default function CartDrawer({
                         £
                         {(
                           getProductPrice(product) *
-                          item.quantity *
-                          (checkIsAccessory(product) ? 1 : 1.44)
+                          (checkIsAccessory(product)
+                            ? item.quantity
+                            : item.unit === "pieces"
+                            ? item.quantity * (1.44 / ((product.size || "").toLowerCase().includes("600x600") ? 4 : 2))
+                            : item.quantity * 1.44)
                         ).toFixed(2)}
                       </p>
                     </div>
@@ -434,7 +469,7 @@ export default function CartDrawer({
             <div className="flex gap-4 mb-6 bg-gray-50 border border-gray-100 p-4 rounded-sm">
               <div className="flex-1">
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5e7e95] mb-1.5">Boxes</p>
-                <p className="text-[13px] font-bold text-[#4a2c2a]">{totalCount}</p>
+                <p className="text-[13px] font-bold text-[#4a2c2a]">{Number(totalCount.toFixed(2))}</p>
               </div>
               <div className="flex-1">
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#5e7e95] mb-1.5">Weight</p>

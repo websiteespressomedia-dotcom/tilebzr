@@ -410,7 +410,7 @@ export default function ContactPage() {
         <header className="mb-12 md:mb-24">
           <h1 className="text-[18vw] md:text-[9vw] font-serif leading-[0.85] tracking-tighter">
             Contact <br />
-            <span className="italic font-light ml-[4vw] md:ml-[8vw]">Bazaar.</span>
+            <span className="italic font-light ml-[4vw] md:ml-[8vw]">Tile Bazaar.</span>
           </h1>
         </header>
 

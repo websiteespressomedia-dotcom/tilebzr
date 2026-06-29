@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { RootState } from "@/store/store";
 import { useCart } from "@/context/CartContext";
 import TilePackCalculator from "@/components/products/TilePackCalculator";
 import previewMap from "@/app/previewMap.json";
+import api from "@/lib/axios";
 
 /* ─────────────────────────────────────────────
    Pure helper functions (same logic as TileGallery)
@@ -228,7 +229,7 @@ const getCategory = (fileName: string) => {
 };
 
 const getPreviewUrl = (
-  fileNameOnly: string,
+  imagePath: string,
   size: string,
   previewPaths: string[]
 ): string | null => {
@@ -237,27 +238,51 @@ const getPreviewUrl = (
   // Normalize helper
   const normalize = (name: string) => {
     const nameWithoutQuery = name.split("?")[0];
-    return nameWithoutQuery
+    let norm = nameWithoutQuery
       .toLowerCase()
-      .replace(/\.[^/.]+$/, "") // remove extension
-      .split("--")[0]           // remove suffix like --GLOSS
-      .replace(/[-_\s'’]/g, "");  // remove spaces, hyphens, underscores, quotes
+      .replace(/\.(jpg|jpeg|png|webp|avif)/g, "") // remove all extensions
+      .replace(/\.[^/.]+$/, "")                  // remove any remaining extension
+      .split("--")[0]                            // remove suffix like --GLOSS
+      .replace(/[^a-z0-9]/g, "");                // remove all non-alphanumeric characters
+    
+    // Handle spelling inconsistencies
+    norm = norm.replace(/brwon/g, "brown");
+    norm = norm.replace(/earharo/g, "eartharo");
+    return norm;
   };
 
+  const targetSize = size.toLowerCase().replace(/\s/g, ""); // e.g. "600x600" or "600x1200"
+
+  const urlWithoutQuery = imagePath.split("?")[0];
+  const fileNameOnly = urlWithoutQuery.split("/").pop() || urlWithoutQuery;
+
   let normalizedFile = normalize(fileNameOnly);
+  
+  if (imagePath.includes("?")) {
+    try {
+      const queryStr = imagePath.split("?")[1];
+      const params = new URLSearchParams(queryStr);
+      const nameParam = params.get("name");
+      if (nameParam) {
+        normalizedFile = normalize(nameParam);
+      }
+    } catch (e) {
+      console.error("Error parsing name param in getPreviewUrl:", e);
+    }
+  }
+
   if (normalizedFile === "lux09r1") {
     normalizedFile = "lux09hl1";
   }
   if (normalizedFile.includes("salted") && (normalizedFile.includes("concreto") || normalizedFile.includes("concrete"))) {
     normalizedFile = "saltedconcretecrema";
   }
-  if (normalizedFile === "artefluowhite1") {
+  if (normalizedFile === "artefluowhite1" && targetSize === "600x600") {
     normalizedFile = "artefluowhiter1";
   }
   if (normalizedFile.startsWith("phantom")) {
     normalizedFile = "phantomdecor";
   }
-  const targetSize = size.toLowerCase().replace(/\s/g, ""); // e.g. "600x600" or "600x1200"
 
   // Filter preview paths to only include paths matching the target size folder
   const sizeFilteredPaths = previewPaths.filter((p) => {
@@ -313,7 +338,6 @@ const getPreviewUrl = (
   // 2. Check leftSideVariantsGroup for combo_tiles
   const leftSideVariantsGroup = [
     ["artovel 018 dk", "artovel 018 hl"],
-    ["earharo hl", "eartharo brwon f1", "earharo brown f1"],
     ["el glitter aqua"],
     ["gl 2509 decor", "gl 2509 lt"],
     ["gl 2511 decor", "gl 2511 lt"],
@@ -387,6 +411,25 @@ const getPreviewUrl = (
   }
 
   return null;
+};
+
+const getPathDimension = (pathStr: string): string => {
+  const pathWithoutQuery = pathStr.split("?")[0];
+  if (pathStr.includes("?size=")) {
+    return pathStr.split("?size=")[1].split("&")[0];
+  }
+  if (!pathStr.startsWith("http")) {
+    const parts = pathWithoutQuery.split("/");
+    const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
+    if (sizeFolder) {
+      return sizeFolder;
+    }
+    const sizeFolderPart = parts[0];
+    if (sizeFolderPart.includes("x")) {
+      return sizeFolderPart;
+    }
+  }
+  return "N/A";
 };
 
 /* ─────────────────────────────────────────────
@@ -508,19 +551,202 @@ export default function ProductDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = use(params);
-  // slug is the URL-encoded relative tile path, e.g. "600x600%2FALEXA+BEIGE_R1--GLOSS.jpg"
-  const imagePath = decodeURIComponent(resolvedParams.slug); // e.g. "600x600/ALEXA BEIGE_R1--GLOSS.jpg"
-  
+  const decodedSlug = decodeURIComponent(resolvedParams.slug);
+  const isLegacy = decodedSlug.includes(".") || decodedSlug.includes("/") || decodedSlug.includes("\\");
+
+  const [allTiles, setAllTiles] = useState<string[]>([]);
+  const [previewPaths, setPreviewPaths] = useState<string[]>([]);
+
+  useEffect(() => {
+    import("@/app/actions").then((module) => {
+      module.getActiveTilePaths().then((paths) => setAllTiles(paths));
+      module.getAllPreviewPaths().then((paths) => setPreviewPaths(paths));
+    });
+  }, []);
+
+  const [productData, setProductData] = useState<any>(null);
+  const [loadingProduct, setLoadingProduct] = useState(!isLegacy);
+  const [imagePath, setImagePath] = useState(isLegacy ? decodedSlug : "");
+
+  // Fetch product from DB if not legacy
+  useEffect(() => {
+    if (!isLegacy) {
+      setLoadingProduct(true);
+      api.get(`/api/products/slug/${decodedSlug}`)
+        .then((res) => {
+          setProductData(res.data);
+          setLoadingProduct(false);
+        })
+        .catch((err) => {
+          if (err.message !== "Network Error") {
+            console.warn("Could not fetch product by slug from database:", err.message || err);
+          }
+          setLoadingProduct(false);
+        });
+    }
+  }, [decodedSlug, isLegacy]);
+
+  // Fallback lookup in allTiles when backend product not found or server fails
+  useEffect(() => {
+    if (!isLegacy && !productData && !loadingProduct && allTiles.length > 0) {
+      // 1. Try exact slug match
+      let matched = allTiles.find(t => {
+        if (t.includes("?")) {
+          const q = t.split("?")[1];
+          const up = new URLSearchParams(q);
+          return up.get("slug") === decodedSlug;
+        }
+        return false;
+      });
+
+      // 2. Try parsing slug to match name and size
+      if (!matched) {
+        const lowerSlug = decodedSlug.toLowerCase();
+        let parsedSize = "";
+        if (lowerSlug.includes("600x1200")) parsedSize = "600x1200";
+        else if (lowerSlug.includes("600x600")) parsedSize = "600x600";
+
+        const cleanedSlug = lowerSlug
+          .replace("600x1200", "")
+          .replace("600x600", "")
+          .replace("glossy", "")
+          .replace("matt", "")
+          .replace(/[-_\s]/g, "");
+
+        matched = allTiles.find(t => {
+          const tPath = t.split("?")[0];
+          const tFile = tPath.split("/").pop() || tPath;
+          const tSizeFolder = tPath.split("/")[0] || "";
+
+          const q = t.split("?")[1] || "";
+          const up = new URLSearchParams(q);
+
+          const rawName = up.get("name") || tFile.split("--")[0].replace(/\.[^/.]+$/, "");
+          const tNameNormalized = rawName.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+          const rawSize = up.get("size") || tSizeFolder;
+          const tSizeNormalized = rawSize.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+          const nameMatches = tNameNormalized.includes(cleanedSlug) || cleanedSlug.includes(tNameNormalized);
+          const sizeMatches = parsedSize ? tSizeNormalized === parsedSize : true;
+
+          return nameMatches && sizeMatches;
+        });
+      }
+
+      if (matched) {
+        const q = matched.split("?")[1];
+        const up = new URLSearchParams(q);
+        const mockProduct = {
+          name: up.get("name") || "",
+          price: parseFloat(up.get("price") || "12"),
+          discount_price: up.has("discountPrice") ? parseFloat(up.get("discountPrice")!) : undefined,
+          category: up.get("category") || "Accessories",
+          finish: up.get("finish") || "Grey",
+          size: up.get("size") || "20kg",
+          image: matched.split("?")[0]
+        };
+        setProductData(mockProduct);
+      }
+    }
+  }, [decodedSlug, isLegacy, productData, loadingProduct, allTiles]);
+
+  // Resolve imagePath dynamically when productData and allTiles are loaded
+  useEffect(() => {
+    if (!isLegacy && productData) {
+      if (allTiles.length > 0) {
+        const targetSlug = (productData.slug || "").toLowerCase().trim();
+        const targetName = (productData.name || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+        const targetSize = (productData.size || "").toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+        // 1. Try slug match
+        let foundTile = allTiles.find(t => {
+          if (!t.includes("?")) return false;
+          const q = t.split("?")[1];
+          const up = new URLSearchParams(q);
+          const s = (up.get("slug") || "").toLowerCase().trim();
+          return s && s === targetSlug;
+        });
+
+        // 2. Try name and size match
+        if (!foundTile && targetName) {
+          foundTile = allTiles.find(t => {
+            const tPath = t.split("?")[0];
+            const tFile = tPath.split("/").pop() || tPath;
+            const tSizeFolder = tPath.split("/")[0] || "";
+
+            const q = t.split("?")[1] || "";
+            const up = new URLSearchParams(q);
+
+            const rawName = up.get("name") || tFile.split("--")[0].replace(/\.[^/.]+$/, "");
+            const tNameNormalized = rawName.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+            const rawSize = up.get("size") || tSizeFolder;
+            const tSizeNormalized = rawSize.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+
+            return tNameNormalized === targetName && tSizeNormalized === targetSize;
+          });
+        }
+
+        // 3. Try filename and size match
+        if (!foundTile && productData.image) {
+          const dbImgFilename = (productData.image.split("/").pop() || "").split("?")[0].toLowerCase().trim();
+
+          foundTile = allTiles.find(t => {
+            const tPath = t.split("?")[0];
+            const tFile = (tPath.split("/").pop() || "").toLowerCase().trim();
+            const tSizeFolder = tPath.split("/")[0] || "";
+
+            const matchesFilename = tFile === dbImgFilename || tPath.toLowerCase() === dbImgFilename;
+            if (!matchesFilename) return false;
+
+            if (targetSize) {
+              const q = t.split("?")[1] || "";
+              const up = new URLSearchParams(q);
+              const tSize = (up.get("size") || tSizeFolder)
+                .toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+              return tSize === targetSize;
+            }
+            return true;
+          });
+        }
+
+        // 4. Last resort: match just productData.image filename
+        if (!foundTile) {
+          foundTile = allTiles.find(t => {
+            const tPath = t.split("?")[0];
+            const tFile = tPath.split("/").pop() || tPath;
+            return tFile === productData.image || tPath === productData.image;
+          });
+        }
+
+        if (foundTile) {
+          setImagePath(foundTile);
+        } else {
+          setImagePath(productData.image || "");
+        }
+      } else {
+        setImagePath(productData.image || "");
+      }
+    }
+  }, [productData, allTiles, isLegacy]);
+
   const imagePathWithoutQuery = imagePath.split("?")[0];
   const fileNameOnly = imagePathWithoutQuery.split("/").pop() || imagePathWithoutQuery;
   
-  let dimension = "N/A";
-  if (imagePath.includes("?size=")) {
-    dimension = imagePath.split("?size=")[1].split("&")[0];
-  } else if (!imagePath.startsWith("http")) {
-    dimension = imagePath.split("/")[0].split("?")[0] || "N/A";
-  }
-  dimension = dimension.toUpperCase();
+  let dimension = getPathDimension(imagePath).toUpperCase();
+
+  const getVariantLink = (pathStr: string) => {
+    if (pathStr.includes("?")) {
+      const q = pathStr.split("?")[1];
+      const params = new URLSearchParams(q);
+      const slug = params.get("slug");
+      if (slug) {
+        return `/products/${slug}`;
+      }
+    }
+    return `/products/${encodeURIComponent(pathStr)}`;
+  };
 
   const [selectedAurlImage, setSelectedAurlImage] = useState<string | null>(null);
   const [selectedPaveImage, setSelectedPaveImage] = useState<string | null>(null);
@@ -535,7 +761,7 @@ export default function ProductDetailPage({
     ? (selectedPaveImage || "600x600/PAVE’ PARIS G (605x605) 16mm.jpeg")
     : imagePath;
 
-  const finish = getFinish(fileNameOnly);
+  let finish = getFinish(fileNameOnly);
   const details = getProductDetails(fileNameOnly);
   let category = getCategory(fileNameOnly);
   let displayName = formatFileName(fileNameOnly);
@@ -558,6 +784,26 @@ export default function ProductDetailPage({
      }
   }
 
+  if (!isLegacy && productData) {
+    displayName = productData.name;
+    category = productData.category || category;
+    if (productData.price !== undefined && productData.price !== null) {
+      details.price = productData.price;
+      displayOriginalPrice = productData.price + 5;
+    }
+    if (productData.discount_price !== undefined && productData.discount_price !== null) {
+      details.price = productData.discount_price;
+    }
+    if (productData.size) {
+      dimension = productData.size.toUpperCase();
+    }
+  }
+  if (productData && productData.finish) {
+    finish = productData.finish;
+  }
+
+  const isComingSoon = imagePath.includes("comingsoon/") || category === "Coming Soon";
+
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { token } = useAppSelector((state: RootState) => state.auth);
@@ -569,19 +815,16 @@ export default function ProductDetailPage({
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [shareMsg, setShareMsg] = useState("");
   const [imgError, setImgError] = useState(false);
-  const [showMoreDesc, setShowMoreDesc] = useState(false);
-  const [showMoreAdhesiveFeats, setShowMoreAdhesiveFeats] = useState(false);
-  const [allTiles, setAllTiles] = useState<string[]>([]);
-  const [previewPaths, setPreviewPaths] = useState<string[]>([]);
 
   useEffect(() => {
-    import("@/app/actions").then((module) => {
-      module.getAllTilePaths().then((paths) => setAllTiles(paths));
-      module.getAllPreviewPaths().then((paths) => setPreviewPaths(paths));
-    });
-  }, []);
+    setImgError(false);
+  }, [displayImagePath]);
 
-  const previewUrl = getPreviewUrl(fileNameOnly, dimension, previewPaths);
+  const [showMoreDesc, setShowMoreDesc] = useState(false);
+  const [showMoreAdhesiveFeats, setShowMoreAdhesiveFeats] = useState(false);
+
+
+  const previewUrl = getPreviewUrl(imagePath, dimension, previewPaths);
 
   const currentNameLower = getVariantMatchName(fileNameOnly).toLowerCase();
   const matchedRightGroup = rightSideVariantsGroup.find((g) =>
@@ -591,24 +834,72 @@ export default function ProductDetailPage({
     g.includes(currentNameLower),
   );
 
+  const currentKey = useMemo(() => {
+    const getVariantKey = (fname: string): string | null => {
+      const clean = fname.split("--")[0].replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim().toLowerCase();
+      const words = clean.split(/\s+/);
+      
+      const numIdx = words.findIndex(w => /\d+/.test(w));
+      if (numIdx !== -1 && numIdx + 1 < words.length) {
+        const numberPart = words[numIdx].match(/\d+/)?.[0];
+        const nextWord = words[numIdx + 1];
+        if (numberPart && nextWord) {
+          return `${numberPart}_${nextWord}`;
+        }
+      }
+      return null;
+    };
+    return getVariantKey(fileNameOnly);
+  }, [fileNameOnly]);
+
+  const matchedDynamicGroup = useMemo(() => {
+    if (matchedRightGroup || matchedLeftGroup || !currentKey || allTiles.length === 0) return null;
+
+    const currentDimension = getPathDimension(imagePath);
+    const getVariantKey = (fname: string): string | null => {
+      const clean = fname.split("--")[0].replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim().toLowerCase();
+      const words = clean.split(/\s+/);
+      
+      const numIdx = words.findIndex(w => /\d+/.test(w));
+      if (numIdx !== -1 && numIdx + 1 < words.length) {
+        const numberPart = words[numIdx].match(/\d+/)?.[0];
+        const nextWord = words[numIdx + 1];
+        if (numberPart && nextWord) {
+          return `${numberPart}_${nextWord}`;
+        }
+      }
+      return null;
+    };
+
+    // Find all other tiles in the same size folder that match the key
+    const matched = allTiles.filter(t => {
+      const tDimension = getPathDimension(t);
+      if (tDimension !== currentDimension) return false;
+
+      const tFileName = t.split("?")[0].split("/").pop() || t;
+      return getVariantKey(tFileName) === currentKey;
+    });
+
+    return matched.length > 1 ? matched.sort() : null;
+  }, [matchedRightGroup, matchedLeftGroup, currentKey, allTiles, imagePath]);
+
   const variantPaths = React.useMemo(() => {
+    if (matchedDynamicGroup) {
+      return matchedDynamicGroup;
+    }
+
     const group = matchedRightGroup || matchedLeftGroup;
     if (!group || allTiles.length === 0) return [];
 
     const currentFileName = imagePath.split("/").pop() || imagePath;
     const currentSuffix = getFileNameSuffix(currentFileName).toLowerCase();
-    const currentDimension = imagePath.split("/")[0];
+    const currentDimension = getPathDimension(imagePath);
 
     const paths: string[] = [];
     for (const itemName of group) {
       // Filter candidates to ensure they belong to the same dimension folder
       const candidates = allTiles.filter((t) => {
-        let tDimension = "N/A";
-        if (t.includes("?size=")) {
-          tDimension = t.split("?size=")[1];
-        } else if (!t.startsWith("http")) {
-          tDimension = t.split("/")[0];
-        }
+        const tDimension = getPathDimension(t);
         
         const tNameWithoutQuery = t.split("?")[0];
         const tName = tNameWithoutQuery.split("/").pop() || tNameWithoutQuery;
@@ -689,7 +980,16 @@ export default function ProductDetailPage({
 
   const handleAddToCart = async () => {
     if (!token) {
-      router.push("/login");
+      const continueWithoutLogin = typeof window !== "undefined" && localStorage.getItem("tb_continue_without_login") === "true";
+      if (!continueWithoutLogin) {
+        const currentPath = window.location.pathname + window.location.search;
+        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+        return;
+      }
+      performMockAdd();
+      setIsSuccess(true);
+      setCartOpen(true);
+      setTimeout(() => setIsSuccess(false), 2500);
       return;
     }
     try {
@@ -712,23 +1012,21 @@ export default function ProductDetailPage({
 
   /* ── Wishlist — toggle and persist to localStorage ── */
   const handleWishlist = () => {
-    setIsWishlisted((prev) => {
-      const next = !prev;
-      try {
-        const stored = JSON.parse(
-          localStorage.getItem("tb_wishlist") || "[]",
-        ) as string[];
-        const updated = next
-          ? [...new Set([...stored, fileNameOnly])]
-          : stored.filter((id) => id !== fileNameOnly);
-        localStorage.setItem("tb_wishlist", JSON.stringify(updated));
-        // Notify navbar to update wishlist badge count
-        window.dispatchEvent(new Event("wishlist-updated"));
-      } catch {
-        // ignore storage errors
-      }
-      return next;
-    });
+    const next = !isWishlisted;
+    setIsWishlisted(next);
+    try {
+      const stored = JSON.parse(
+        localStorage.getItem("tb_wishlist") || "[]",
+      ) as string[];
+      const updated = next
+        ? [...new Set([...stored, fileNameOnly])]
+        : stored.filter((id) => id !== fileNameOnly);
+      localStorage.setItem("tb_wishlist", JSON.stringify(updated));
+      // Notify navbar to update wishlist badge count
+      window.dispatchEvent(new Event("wishlist-updated"));
+    } catch {
+      // ignore storage errors
+    }
   };
 
   /* ── Share ── */
@@ -746,6 +1044,14 @@ export default function ProductDetailPage({
       setTimeout(() => setShareMsg(""), 2500);
     }
   };
+
+  if (loadingProduct) {
+    return (
+      <div className="py-40 flex justify-center">
+        <div className="animate-spin h-10 w-10 border-b-2 border-[#4a2c2a] rounded-full"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white min-h-screen pt-20 md:pt-24">
@@ -775,9 +1081,13 @@ export default function ProductDetailPage({
           ════════════════════════════════ */}
           <div className="w-full lg:w-[55%] xl:w-[58%] lg:sticky lg:top-28">
             <div className="relative w-full aspect-square bg-transparent rounded-sm overflow-hidden flex items-center justify-center p-6 md:p-10 transition-all duration-300">
-              {!imgError ? (
+              {!displayImagePath ? (
+                <div className="w-full h-full flex items-center justify-center text-gray-300 text-sm animate-pulse">
+                  Loading image...
+                </div>
+              ) : !imgError ? (
                 <img
-                  src={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : `/tiles/${displayImagePath.split("?")[0].split('/').map(s => encodeURIComponent(s)).join('/')}`}
+                  src={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : displayImagePath.startsWith("comingsoon/") ? `/${displayImagePath.split("?")[0].split('/').map(s => encodeURIComponent(s)).join('/')}` : `/tiles/${displayImagePath.split("?")[0].split('/').map(s => encodeURIComponent(s)).join('/')}`}
                   alt={displayName}
                   className="w-full h-full object-contain "
                   onError={() => setImgError(true)}
@@ -800,11 +1110,11 @@ export default function ProductDetailPage({
             {!(
               (matchedRightGroup || matchedLeftGroup) &&
               variantPaths.length > 0
-            ) && !isAurlProduct && !isPaveProduct && !isSaltedProduct && (
+            ) && !isAurlProduct && !isPaveProduct && !isSaltedProduct && displayImagePath && (
               <div className="mt-4 flex gap-3">
                 <div className="w-20 h-20 bg-transparent border-2 border-[#4a2c2a] rounded-sm overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
                   <img
-                    src={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : `/tiles/${displayImagePath.split("?")[0]}`}
+                    src={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : displayImagePath.startsWith("comingsoon/") ? `/${displayImagePath.split("?")[0]}` : `/tiles/${displayImagePath.split("?")[0]}`}
                     alt="thumb"
                     className="w-full h-full object-contain "
                   />
@@ -871,14 +1181,14 @@ export default function ProductDetailPage({
                     return (
                       <Link
                         key={path}
-                        href={`/products/${encodeURIComponent(path)}`}
+                        href={getVariantLink(path)}
                         className="group flex flex-col items-center"
                       >
                         <div
                           className={`relative w-36 h-24 md:w-40 md:h-28 bg-transparent border-[3px] ${isActive ? "border-black" : "border-transparent"} hover:border-black/40 transition-colors overflow-hidden`}
                         >
                           <img
-                            src={path.startsWith("http") ? path.split("?")[0] : `/tiles/${path.split("?")[0]}`}
+                            src={path.startsWith("http") ? path.split("?")[0] : path.startsWith("comingsoon/") ? `/${path.split("?")[0]}` : `/tiles/${path.split("?")[0]}`}
                             alt={vName}
                             
                             className="w-full h-full object-cover  p-1"
@@ -1163,7 +1473,7 @@ export default function ProductDetailPage({
               </div>
             )}
 
-            {matchedRightGroup && variantPaths.length > 0 && (
+            {(matchedRightGroup || matchedDynamicGroup) && variantPaths.length > 0 && (
               <div className="mb-10 pb-10 border-b border-gray-100">
                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
                   Available Variants
@@ -1176,14 +1486,14 @@ export default function ProductDetailPage({
                     return (
                       <Link
                         key={path}
-                        href={`/products/${encodeURIComponent(path)}`}
+                        href={getVariantLink(path)}
                         className="group flex flex-col items-center"
                       >
                         <div
                           className={`relative w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${isActive ? "border-[#4a2c2a]" : "border-transparent"} hover:border-[#4a2c2a]/50 transition-colors rounded-sm overflow-hidden`}
                         >
                           <img
-                            src={path.startsWith("http") ? path.split("?")[0] : `/tiles/${path.split("?")[0]}`}
+                            src={path.startsWith("http") ? path.split("?")[0] : path.startsWith("comingsoon/") ? `/${path.split("?")[0]}` : `/tiles/${path.split("?")[0]}`}
                             alt={vName}
                             
                             className="w-full h-full object-cover p-2 "
@@ -1369,17 +1679,15 @@ export default function ProductDetailPage({
                     Product Description
                   </h3>
                   <p className="text-base text-gray-700 leading-relaxed mb-4">
-                    A coated effect Aluminium profile for the protection and
-                    neat finishing of tiled corners and edges. Suitable for use
-                    on walls and floors. Provides a decorative finish.
+                   Length: 2.5m
                   </p>
                   <div
                     className={`transition-all duration-300 overflow-hidden ${showMoreDesc ? "max-h-40 opacity-100 mb-5" : "max-h-0 opacity-0 mb-0"}`}
                   >
                     <ul className="list-disc list-inside text-base text-[#4a2c2a]/70 space-y-2 font-medium">
                       <li>Provides a decorative finish</li>
-                      <li>Suitable for walls and floors</li>
-                      <li>Aluminium profile — durable &amp; lightweight</li>
+                      <li>Suitable for use where tile is bordered by carpet and expansion joints</li>
+                      <li>Length: 2.5m</li>
                     </ul>
                   </div>
                   <button
@@ -1471,7 +1779,7 @@ export default function ProductDetailPage({
             )}
 
             {/* ── Pricing & Cart Section ── */}
-            {details.isAccessory || isPoster || !(dimension.toLowerCase().includes("600x600") || dimension.toLowerCase().includes("600x1200")) ? (
+            {details.isAccessory || isPoster || !(dimension.toLowerCase().includes("600x600") || dimension.toLowerCase().includes("600x1200") || dimension.toLowerCase().includes("300x600")) ? (
               <>
                 {/* ── Old Pricing ── */}
                 {isPoster ? (
@@ -1483,6 +1791,17 @@ export default function ProductDetailPage({
                     <p className="text-xs text-gray-400 mt-1">
                       Please enquire for pricing
                     </p>
+                  </div>
+                ) : isComingSoon ? (
+                  <div className="mb-8">
+                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">
+                      Price
+                    </p>
+                    <div className="flex items-baseline gap-3">
+                      <span className="text-xl font-bold text-gray-400 uppercase tracking-wider">
+                        Coming Soon
+                      </span>
+                    </div>
                   </div>
                 ) : (
                   <div className="mb-8">
@@ -1504,7 +1823,14 @@ export default function ProductDetailPage({
 
                 {/* ── Add to Cart / Buy Now ── */}
                 <div className="flex flex-col gap-3 mb-8">
-                  {isPoster ? (
+                  {isComingSoon ? (
+                    <button
+                      disabled
+                      className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-3 bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed"
+                    >
+                      Coming Soon
+                    </button>
+                  ) : isPoster ? (
                     <Link
                       href="/contact"
                       className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] transition-all duration-300 flex items-center justify-center gap-3 bg-[#222] text-white hover:bg-black shadow-lg"
@@ -1568,19 +1894,27 @@ export default function ProductDetailPage({
                     Price
                   </p>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-bold text-[#4a2c2a]">
-                      £{details.price.toFixed(2)}
-                    </span>
-                    {displayOriginalPrice > details.price && (
-                      <span className="text-xl line-through text-gray-300">
-                        £{displayOriginalPrice.toFixed(2)}
+                    {isComingSoon ? (
+                      <span className="text-xl font-bold text-gray-400 uppercase tracking-wider">
+                        Coming Soon
                       </span>
+                    ) : (
+                      <>
+                        <span className="text-4xl font-bold text-[#4a2c2a]">
+                          £{details.price.toFixed(2)}
+                        </span>
+                        {displayOriginalPrice > details.price && (
+                          <span className="text-xl line-through text-gray-300">
+                            £{displayOriginalPrice.toFixed(2)}
+                          </span>
+                        )}
+                        <span className="text-[11px] text-gray-400 font-medium">
+                          / m²
+                        </span>
+                      </>
                     )}
-                    <span className="text-[11px] text-gray-400 font-medium">
-                      / m²
-                    </span>
                   </div>
-                  {displayOriginalPrice > details.price && (
+                  {!isComingSoon && displayOriginalPrice > details.price && (
                     <div className="mt-2 inline-flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full">
                       <span className="text-[10px] font-bold uppercase tracking-wider">
                         Save £{(displayOriginalPrice - details.price).toFixed(2)}
@@ -1589,15 +1923,26 @@ export default function ProductDetailPage({
                   )}
                 </div>
 
-                <TilePackCalculator
-                  productId={fileNameOnly}
-                  productName={displayName}
-                  pricePerM2={details.price}
-                  size={dimension}
-                  image={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : `/tiles/${displayImagePath.split("?")[0]}`}
-                  token={token}
-                  router={router}
-                />
+                {isComingSoon ? (
+                  <div className="mb-8">
+                    <button
+                      disabled
+                      className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-3 bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed"
+                    >
+                      Coming Soon
+                    </button>
+                  </div>
+                ) : (
+                  <TilePackCalculator
+                    productId={fileNameOnly}
+                    productName={displayName}
+                    pricePerM2={details.price}
+                    size={dimension}
+                    image={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : displayImagePath.startsWith("comingsoon/") ? `/${displayImagePath.split("?")[0]}` : `/tiles/${displayImagePath.split("?")[0]}`}
+                    token={token}
+                    router={router}
+                  />
+                )}
 
                 <div className="flex gap-3 mb-8">
                   <button
