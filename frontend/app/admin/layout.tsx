@@ -68,7 +68,7 @@ const navLinks = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, token, loading } = useAppSelector((state) => state.auth);
+  const { user, token, loading, isInitialized } = useAppSelector((state) => state.auth);
   const dispatch = useAppDispatch();
   const router = useRouter();
   const pathname = usePathname();
@@ -111,7 +111,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Only attempt to fetch data if:
     // 1. The component is hydrated (running in browser)
     // 2. Redux isn't currently fetching a fresh profile (loading: false)
-    if (isHydrated && !loading) {
+    if (isHydrated && !loading && isInitialized) {
       if (token && user?.role === "admin") {
         // PRE-FETCH DATA: Load all admin data in the background on mount
         // to make switching between pages instant.
@@ -122,9 +122,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         dispatch(fetchProjectInquiries());
       }
     }
-  }, [user, token, loading, isHydrated, dispatch]);
+  }, [user, token, loading, isHydrated, isInitialized, dispatch]);
 
-  if (!isHydrated || loading) {
+  if (!isHydrated || loading || !isInitialized) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white">
         <div className="w-6 h-6 border-2 border-[#4a2c2a] border-t-transparent rounded-full animate-spin mb-4" />

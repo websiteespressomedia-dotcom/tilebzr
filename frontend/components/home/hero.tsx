@@ -53,7 +53,7 @@ export default function Hero() {
           src="/images/offer_new.png" // Your PNG with the text and slant
           alt="Opening Offer £10 + VAT"
           fill
-          className="object-fill lg:object-contain object-center"
+          className="object-contain object-center"
           priority
           sizes="100vw"
         />

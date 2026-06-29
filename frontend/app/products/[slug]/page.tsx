@@ -114,8 +114,9 @@ const leftSideVariantsGroup = [
   ["waves hl", "waves nero f1"],
 ];
 
-const getProductDetails = (fileName: string) => {
+const getProductDetails = (fileName: string, dimension?: string) => {
   const upper = fileName.toUpperCase();
+  const dimUpper = dimension ? dimension.toUpperCase() : "";
   if (upper.includes("TRIM"))
     return {
       price: 8,
@@ -165,6 +166,20 @@ const getProductDetails = (fileName: string) => {
   ) {
     return {
       price: 18,
+      unit: "m²",
+      isAccessory: false,
+      isAdhesive: false,
+      isTrim: false,
+    };
+  }
+  if (
+    upper.includes("300X600") ||
+    dimUpper.includes("300X600") ||
+    dimUpper.includes("300X600 MM") ||
+    upper.includes("300X600MM")
+  ) {
+    return {
+      price: 10,
       unit: "m²",
       isAccessory: false,
       isAdhesive: false,
@@ -293,24 +308,30 @@ const getPreviewUrl = (
   if (sizeFilteredPaths.length === 0) return null;
 
   // Split into single_tiles and combo_tiles preview arrays for the current size
-  const singleTiles: string[] = [];
-  const comboTiles: string[] = [];
+  const singleTiles: { file: string; subPath: string }[] = [];
+  const comboTiles: { file: string; subPath: string }[] = [];
 
   for (const pathStr of sizeFilteredPaths) {
     const parts = pathStr.replace(/\\/g, "/").split("/");
-    const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
-    const file = parts[2];   // e.g. "alexa_beige_r1_preview.png"
-    if (file) {
-      if (folder === "single_tiles") {
-        singleTiles.push(file);
-      } else if (folder === "combo_tiles") {
-        comboTiles.push(file);
+    if (parts.length === 2) {
+      // Direct file in size directory, treat it as single_tiles
+      singleTiles.push({ file: parts[1], subPath: "" });
+    } else if (parts.length > 2) {
+      const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
+      const file = parts[2];
+      if (file) {
+        if (folder === "single_tiles") {
+          singleTiles.push({ file, subPath: "single_tiles" });
+        } else if (folder === "combo_tiles") {
+          comboTiles.push({ file, subPath: "combo_tiles" });
+        }
       }
     }
   }
 
   // 1. Check single_tiles
-  for (const preview of singleTiles) {
+  for (const item of singleTiles) {
+    const preview = item.file;
     let normPreview = normalize(preview);
     if (normPreview.endsWith("preview")) {
       normPreview = normPreview.slice(0, -7);
@@ -319,19 +340,28 @@ const getPreviewUrl = (
     // Custom logic for matching aurl grigio in single_tiles
     if (normalizedFile.includes("aurl") && normalizedFile.includes("grigio")) {
       if (normPreview.includes("aurl") && normPreview.includes("grigio")) {
-        return `/previews/${targetSize}/single_tiles/${preview}`;
+        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
       }
     }
     
     // Custom logic for matching pave paris in single_tiles
     if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
       if (normPreview.includes("pave") && normPreview.includes("paris")) {
-        return `/previews/${targetSize}/single_tiles/${preview}`;
+        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+      }
+    }
+    
+    // Custom logic for matching poster pieces in single_tiles
+    if (normalizedFile.includes("poster") && normPreview.includes("poster")) {
+      const fileNum = normalizedFile.replace(/[^0-9]/g, "");
+      const previewNum = normPreview.replace(/[^0-9]/g, "");
+      if (fileNum && fileNum === previewNum) {
+        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
       }
     }
     
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/${targetSize}/single_tiles/${preview}`;
+      return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
     }
   }
 
@@ -377,36 +407,39 @@ const getPreviewUrl = (
 
   if (matchedGroup) {
     // Try current variant match first
-    for (const preview of comboTiles) {
+    for (const item of comboTiles) {
+      const preview = item.file;
       const normPreview = normalize(preview);
-      for (const item of matchedGroup) {
-        const normItem = normalize(item);
+      for (const itemMatch of matchedGroup) {
+        const normItem = normalize(itemMatch);
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          if (currentVariantMatch === item.toLowerCase()) {
+          if (currentVariantMatch === itemMatch.toLowerCase()) {
             if (normPreview === normalize(currentVariantMatch)) {
-              return `/previews/${targetSize}/combo_tiles/${preview}`;
+              return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
             }
           }
         }
       }
     }
     // Fall back to any group match
-    for (const preview of comboTiles) {
+    for (const item of comboTiles) {
+      const preview = item.file;
       const normPreview = normalize(preview);
-      for (const item of matchedGroup) {
-        const normItem = normalize(item);
+      for (const itemMatch of matchedGroup) {
+        const normItem = normalize(itemMatch);
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          return `/previews/${targetSize}/combo_tiles/${preview}`;
+          return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
         }
       }
     }
   }
 
   // 3. Direct match combo_tiles
-  for (const preview of comboTiles) {
+  for (const item of comboTiles) {
+    const preview = item.file;
     const normPreview = normalize(preview);
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/${targetSize}/combo_tiles/${preview}`;
+      return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
     }
   }
 
@@ -603,10 +636,12 @@ export default function ProductDetailPage({
       if (!matched) {
         const lowerSlug = decodedSlug.toLowerCase();
         let parsedSize = "";
-        if (lowerSlug.includes("600x1200")) parsedSize = "600x1200";
+        if (lowerSlug.includes("1200x1200")) parsedSize = "1200x1200";
+        else if (lowerSlug.includes("600x1200")) parsedSize = "600x1200";
         else if (lowerSlug.includes("600x600")) parsedSize = "600x600";
 
         const cleanedSlug = lowerSlug
+          .replace("1200x1200", "")
           .replace("600x1200", "")
           .replace("600x600", "")
           .replace("glossy", "")
@@ -644,7 +679,10 @@ export default function ProductDetailPage({
           category: up.get("category") || "Accessories",
           finish: up.get("finish") || "Grey",
           size: up.get("size") || "20kg",
-          image: matched.split("?")[0]
+          image: matched.split("?")[0],
+          is_coming_soon: up.get("isComingSoon") === "true",
+          is_out_of_stock: up.get("isOutOfStock") === "true",
+          stock: up.get("isOutOfStock") === "true" ? 0 : 100
         };
         setProductData(mockProduct);
       }
@@ -762,7 +800,7 @@ export default function ProductDetailPage({
     : imagePath;
 
   let finish = getFinish(fileNameOnly);
-  const details = getProductDetails(fileNameOnly);
+  const details = getProductDetails(fileNameOnly, dimension);
   let category = getCategory(fileNameOnly);
   let displayName = formatFileName(fileNameOnly);
   const isPoster = fileNameOnly.toUpperCase().includes("POSTER");
@@ -793,6 +831,7 @@ export default function ProductDetailPage({
     }
     if (productData.discount_price !== undefined && productData.discount_price !== null) {
       details.price = productData.discount_price;
+      displayOriginalPrice = productData.price !== undefined && productData.price !== null ? productData.price : displayOriginalPrice;
     }
     if (productData.size) {
       dimension = productData.size.toUpperCase();
@@ -802,7 +841,8 @@ export default function ProductDetailPage({
     finish = productData.finish;
   }
 
-  const isComingSoon = imagePath.includes("comingsoon/") || category === "Coming Soon";
+  const isComingSoon = imagePath.includes("comingsoon/") || category === "Coming Soon" || productData?.is_coming_soon === true || (imagePath.includes("?") && new URLSearchParams(imagePath.split("?")[1]).get("isComingSoon") === "true");
+  const isOutOfStock = productData?.is_out_of_stock === true || (productData?.stock === 0 && !details.isAccessory) || (imagePath.includes("?") && new URLSearchParams(imagePath.split("?")[1]).get("isOutOfStock") === "true");
 
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -1779,7 +1819,7 @@ export default function ProductDetailPage({
             )}
 
             {/* ── Pricing & Cart Section ── */}
-            {details.isAccessory || isPoster || !(dimension.toLowerCase().includes("600x600") || dimension.toLowerCase().includes("600x1200") || dimension.toLowerCase().includes("300x600")) ? (
+            {details.isAccessory || isPoster || !(dimension.toLowerCase().includes("600x600") || dimension.toLowerCase().includes("600x1200") || dimension.toLowerCase().includes("300x600") || dimension.toLowerCase().includes("1200x1200")) ? (
               <>
                 {/* ── Old Pricing ── */}
                 {isPoster ? (
@@ -1829,6 +1869,13 @@ export default function ProductDetailPage({
                       className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-3 bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed"
                     >
                       Coming Soon
+                    </button>
+                  ) : isOutOfStock ? (
+                    <button
+                      disabled
+                      className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-3 bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed"
+                    >
+                      Out of Stock
                     </button>
                   ) : isPoster ? (
                     <Link
@@ -1930,6 +1977,15 @@ export default function ProductDetailPage({
                       className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-3 bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed"
                     >
                       Coming Soon
+                    </button>
+                  </div>
+                ) : isOutOfStock ? (
+                  <div className="mb-8">
+                    <button
+                      disabled
+                      className="w-full py-4 text-[11px] font-black uppercase tracking-[0.25em] flex items-center justify-center gap-3 bg-gray-50 text-gray-400 border border-gray-100 cursor-not-allowed"
+                    >
+                      Out of Stock
                     </button>
                   </div>
                 ) : (

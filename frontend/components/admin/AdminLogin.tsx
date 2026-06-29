@@ -54,7 +54,7 @@ export default function AdminLoginPage() {
             <label className="text-[10px] text-zinc-300 font-bold uppercase tracking-tight opacity-80">Admin Email</label>
             <input 
               type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@tilebazaar.co.uk"
+              placeholder=""
               className="w-full mt-1 p-3 bg-zinc-900/50 text-white border border-zinc-700 rounded focus:border-[#4a2c2a] focus:ring-1 focus:ring-[#4a2c2a] outline-none transition-all text-sm"
             />
           </div>
@@ -67,7 +67,7 @@ export default function AdminLoginPage() {
                 id="password"
                 name="password"
                 type={showPassword ? "text" : "password"}
-                required placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)}
+                required placeholder="" value={password} onChange={(e) => setPassword(e.target.value)}
                 className="w-full p-3 bg-zinc-900/50 text-white border border-zinc-700 rounded focus:border-[#4a2c2a] focus:ring-1 focus:ring-[#4a2c2a] outline-none transition-all text-sm"
               />
               <button

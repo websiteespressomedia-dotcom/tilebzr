@@ -91,7 +91,8 @@ export default function AboutSection() {
                 src="/images/about_tiles.png" 
                 alt="TileBazaar Bulk Supply"
                 fill
-                className="object-cover transition-transform duration-1000 group-hover:scale-105"
+                style={{ objectFit: "cover" }}
+                className="transition-transform duration-1000 group-hover:scale-105"
                 sizes="(max-width: 1024px) 100vw, 50vw"
               />
             </div>

@@ -2,6 +2,7 @@
 
 import fs from "fs";
 import path from "path";
+import api from "@/lib/axios";
 
 // In-memory cache variables for improved page load speeds
 let cachedActiveTiles: string[] | null = null;
@@ -13,9 +14,17 @@ let comingSoonTimestamp = 0;
 let cachedPreviewPaths: string[] | null = null;
 let previewPathsTimestamp = 0;
 
-const CACHE_TTL_MS = 30 * 1000; // Cache for 30 seconds
+let cachedTilePaths: string[] | null = null;
+let tilePathsTimestamp = 0;
+
+const CACHE_TTL_MS = 3 * 60 * 1000; // Cache for 3 minutes
 
 export async function getAllTilePaths(): Promise<string[]> {
+  const now = Date.now();
+  if (cachedTilePaths && (now - tilePathsTimestamp < CACHE_TTL_MS)) {
+    return cachedTilePaths;
+  }
+
   const tilesDirectory = path.join(process.cwd(), "public/tiles");
   let allFiles: string[] = [];
 
@@ -45,6 +54,21 @@ export async function getAllTilePaths(): Promise<string[]> {
     console.error("Error reading tiles directory:", e);
   }
 
+  // Fallback to static tiles-list.json if allFiles is empty (e.g. on Vercel serverless)
+  if (allFiles.length === 0) {
+    try {
+      const tilesListPath = path.join(process.cwd(), "app/tiles-list.json");
+      if (fs.existsSync(tilesListPath)) {
+        const data = fs.readFileSync(tilesListPath, "utf-8");
+        allFiles = JSON.parse(data);
+      }
+    } catch (err) {
+      console.error("Failed to read static tiles list fallback:", err);
+    }
+  }
+
+  cachedTilePaths = allFiles;
+  tilePathsTimestamp = now;
   return allFiles;
 }
 
@@ -81,7 +105,7 @@ function formatFileName(name: string): string {
   return clean;
 }
 
-function getFinish(fileName: string): string {
+function getFinish(fileName: string, localPath?: string): string {
   const name = fileName.toUpperCase();
   if (name.includes("TRIM")) {
     if (name.includes("BRUSHED BRASS")) return "Brushed Brass Effect";
@@ -110,6 +134,7 @@ function getFinish(fileName: string): string {
   if (name.includes("--PUNCHGL")) return "POSTER";
   if (name.includes("--LOVIN")) return "LOVELIN";
   if (name.includes("--TPH")) return "TYPHOON";
+  if (localPath && localPath.toLowerCase().includes("1200x1200")) return "GLOSSY";
   return "OTHER";
 }
 
@@ -178,8 +203,9 @@ function getCategory(localPath: string): string {
   return "Premium Collection";
 }
 
-function getProductDetails(fileName: string) {
+function getProductDetails(fileName: string, localPath?: string) {
   const upper = fileName.toUpperCase();
+  const pathUpper = localPath ? localPath.toUpperCase() : "";
   if (upper.includes("TRIM")) return { price: 8, unit: "+vat/piece" };
   if (upper.includes("SPACER")) return { price: 6, unit: "+vat/bag" };
   if (upper.includes("WEDGE")) return { price: 6, unit: "+vat/bag" };
@@ -194,6 +220,9 @@ function getProductDetails(fileName: string) {
   ) {
     return { price: 18, unit: "m²" };
   }
+  if (upper.includes("300X600") || pathUpper.includes("300X600")) {
+    return { price: 10, unit: "m²" };
+  }
   return { price: 15, unit: "m²" };
 }
 
@@ -207,18 +236,22 @@ function mapLocalPathToUrl(localPath: string, products: any[] = []): string[] {
     if (p.image && p.image.startsWith("http")) {
       return false;
     }
-    if (p.image === basename) {
-      const localSize = getSize(localPath, basename);
-      const prodSize = p.size;
-      if (localSize && prodSize) {
-        const normLocal = localSize.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const normProd = prodSize.toLowerCase().replace(/[^a-z0-9]/g, "");
-        if (normLocal === normProd) {
-          return true;
+    // If the product has a specific local image filename, it must match basename exactly
+    if (p.image && !p.image.startsWith("http")) {
+      if (p.image === basename) {
+        const localSize = getSize(localPath, basename);
+        const prodSize = p.size;
+        if (localSize && prodSize) {
+          const normLocal = localSize.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const normProd = prodSize.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (normLocal === normProd) {
+            return true;
+          }
+          return false;
         }
-        return false;
+        return true;
       }
-      return true;
+      return false;
     }
     const nameMatches = p.name.toLowerCase() === baseStr || p.name.toLowerCase() === cleanStr;
     if (nameMatches) {
@@ -259,19 +292,43 @@ function mapLocalPathToUrl(localPath: string, products: any[] = []): string[] {
       if (matchedProduct.finish) {
         url += `&finish=${encodeURIComponent(matchedProduct.finish)}`;
       }
+      if (matchedProduct.is_coming_soon) {
+        url += `&isComingSoon=true`;
+      }
+      if (matchedProduct.is_out_of_stock || matchedProduct.stock === 0) {
+        url += `&isOutOfStock=true`;
+      }
       return url;
     });
   }
 
   // Fallback for unmatched local file
+  const fallbackSize = getSize(localPath, basename);
+  if (fallbackSize === "1200x1200") {
+    const allowed = [
+      "crema marfil neo_01.jpg.jpg",
+      "ok.jpg",
+      "serena.jpg",
+      "marble carrara-01.jpg.jpg",
+      "oriol aqua_01.jpg.jpg",
+      "passion pulpis bianco_01.jpg.jpg",
+      "snow white_01.jpg.jpg"
+    ];
+    if (!allowed.includes(basename.toLowerCase())) {
+      return [];
+    }
+  }
   const cleanName = formatFileName(basename);
   const fallbackSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
   const fallbackCategory = getCategory(localPath);
-  const fallbackDetails = getProductDetails(basename);
-  const fallbackSize = getSize(localPath, basename);
-  const fallbackFinish = getFinish(basename);
+  const fallbackDetails = getProductDetails(basename, localPath);
+  const fallbackFinish = getFinish(basename, localPath);
 
-  let url = `${localPath}?name=${encodeURIComponent(cleanName)}&price=${fallbackDetails.price}&slug=${fallbackSlug}&category=${encodeURIComponent(fallbackCategory)}`;
+  const is300 = fallbackSize === "300x600";
+  let url = `${localPath}?name=${encodeURIComponent(cleanName)}&price=${is300 ? 15 : fallbackDetails.price}&slug=${fallbackSlug}&category=${encodeURIComponent(fallbackCategory)}`;
+  if (is300) {
+    url += `&discountPrice=10`;
+  }
   if (fallbackSize && fallbackSize !== "accessories") {
     url += `&size=${encodeURIComponent(fallbackSize)}`;
   }
@@ -292,99 +349,43 @@ export async function getActiveTilePaths(): Promise<string[]> {
   let allFiles: string[] = [];
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://tilebazaardemowork-production.up.railway.app';
+  let dbProducts: any[] = [];
 
   try {
-    // Fetch active products from backend with a 3-second timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-    const response = await fetch(`${apiUrl}/api/products`, { 
-      cache: 'no-store',
-      signal: controller.signal
+    // Fetch active products from backend with a 3-second timeout using Axios
+    const response = await api.get('/api/products', {
+      timeout: 3000
     });
-    clearTimeout(timeoutId);
     
-    if (response.ok) {
-      let products = await response.json();
+    const products = response.data;
+    dbProducts = products;
 
-      // Check for local files that are missing from products list
-      const missingFiles: string[] = [];
-      localFiles.forEach(localPath => {
-        const basename = localPath.split('/').pop() || localPath;
-        const matched = products.find((p: any) => {
-          if (p.image && p.image.toLowerCase() === basename.toLowerCase()) {
-            const localSize = getSize(localPath, basename);
-            const prodSize = p.size;
-            if (localSize && prodSize) {
-              const normLocal = localSize.toLowerCase().replace(/[^a-z0-9]/g, "");
-              const normProd = prodSize.toLowerCase().replace(/[^a-z0-9]/g, "");
-              if (normLocal === normProd) return true;
-            }
-          }
-          return false;
-        });
-        if (!matched) {
-          missingFiles.push(localPath);
+    allFiles = localFiles.flatMap(localPath => mapLocalPathToUrl(localPath, products));
+
+    // Add any products that have external image URLs (e.g. from Admin upload)
+    const externalImages = products
+      .filter((p: any) => p.image && p.image.startsWith("http"))
+      .map((p: any) => {
+        let url = `${p.image}?size=${p.size || '600x600'}&name=${encodeURIComponent(p.name)}&price=${p.price}`;
+        if (p.slug) {
+          url += `&slug=${p.slug}`;
         }
+        if (p.discount_price !== undefined && p.discount_price !== null) {
+          url += `&discountPrice=${p.discount_price}`;
+        }
+        if (p.category) {
+          url += `&category=${encodeURIComponent(p.category)}`;
+        }
+        if (p.is_coming_soon) {
+          url += `&isComingSoon=true`;
+        }
+        if (p.is_out_of_stock || p.stock === 0) {
+          url += `&isOutOfStock=true`;
+        }
+        return url;
       });
-
-      if (missingFiles.length > 0) {
-        try {
-          console.log(`Syncing ${missingFiles.length} missing local products to backend...`);
-          const syncController = new AbortController();
-          const syncTimeoutId = setTimeout(() => syncController.abort(), 3000);
-
-          const syncResponse = await fetch(`${apiUrl}/api/products/sync-local`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ paths: missingFiles }),
-            signal: syncController.signal
-          });
-          clearTimeout(syncTimeoutId);
-
-          if (syncResponse.ok) {
-            const refetchController = new AbortController();
-            const refetchTimeoutId = setTimeout(() => refetchController.abort(), 3000);
-
-            const refetchedResponse = await fetch(`${apiUrl}/api/products`, { 
-              cache: 'no-store',
-              signal: refetchController.signal
-            });
-            clearTimeout(refetchTimeoutId);
-
-            if (refetchedResponse.ok) {
-              products = await refetchedResponse.json();
-            }
-          }
-        } catch (syncError) {
-          console.error("Error syncing missing local products to backend:", syncError);
-        }
-      }
-
-      allFiles = localFiles.flatMap(localPath => mapLocalPathToUrl(localPath, products));
-
-      // Add any products that have external image URLs (e.g. from Admin upload)
-      const externalImages = products
-        .filter((p: any) => p.image && p.image.startsWith("http"))
-        .map((p: any) => {
-          let url = `${p.image}?size=${p.size || '600x600'}&name=${encodeURIComponent(p.name)}&price=${p.price}`;
-          if (p.slug) {
-            url += `&slug=${p.slug}`;
-          }
-          if (p.discount_price !== undefined && p.discount_price !== null) {
-            url += `&discountPrice=${p.discount_price}`;
-          }
-          if (p.category) {
-            url += `&category=${encodeURIComponent(p.category)}`;
-          }
-          return url;
-        });
-        
-      allFiles = [...allFiles, ...externalImages];
-    } else {
-      console.warn("Failed to fetch products from backend, falling back to all local files.");
-      allFiles = localFiles.flatMap(localPath => mapLocalPathToUrl(localPath, []));
-    }
+      
+    allFiles = [...allFiles, ...externalImages];
   } catch (e: any) {
     const isConnRefused = e?.cause?.code === 'ECONNREFUSED' || e?.message?.includes('ECONNREFUSED') || String(e).includes('ECONNREFUSED');
     if (isConnRefused) {
@@ -399,11 +400,45 @@ export async function getActiveTilePaths(): Promise<string[]> {
   // Map and append Coming Soon files
   const comingSoonUrls = comingSoonFiles.flatMap(localPath => {
     const basename = localPath.split('/').pop() || localPath;
+    
+    // Check if there is a database product matching this coming soon filename
+    const matchedProduct = dbProducts.find((p: any) => {
+      if (!p.image) return false;
+      const dbFilename = p.image.includes('/') ? p.image.split('/').pop() : p.image;
+      return dbFilename.toLowerCase() === basename.toLowerCase();
+    });
+
+    if (matchedProduct) {
+      let url = `${localPath}?name=${encodeURIComponent(matchedProduct.name)}&price=${matchedProduct.price}`;
+      if (matchedProduct.slug) {
+        url += `&slug=${matchedProduct.slug}`;
+      }
+      if (matchedProduct.discount_price !== undefined && matchedProduct.discount_price !== null) {
+        url += `&discountPrice=${matchedProduct.discount_price}`;
+      }
+      if (matchedProduct.category) {
+        url += `&category=${encodeURIComponent(matchedProduct.category)}`;
+      }
+      if (matchedProduct.size) {
+        url += `&size=${encodeURIComponent(matchedProduct.size)}`;
+      }
+      if (matchedProduct.finish) {
+        url += `&finish=${encodeURIComponent(matchedProduct.finish)}`;
+      }
+      if (matchedProduct.is_coming_soon) {
+        url += `&isComingSoon=true`;
+      }
+      if (matchedProduct.is_out_of_stock || matchedProduct.stock === 0) {
+        url += `&isOutOfStock=true`;
+      }
+      return [url];
+    }
+
     const cleanName = formatFileName(basename);
     const fallbackSlug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const fallbackCategory = "Coming Soon";
     const size = getSize(localPath, basename);
-    const finish = getFinish(basename);
+    const finish = getFinish(basename, localPath);
 
     let url = `${localPath}?name=${encodeURIComponent(cleanName)}&price=0&slug=${fallbackSlug}&category=${encodeURIComponent(fallbackCategory)}`;
     if (size && size !== "accessories") {

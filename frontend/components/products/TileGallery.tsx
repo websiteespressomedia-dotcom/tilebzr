@@ -11,7 +11,7 @@ interface TileGalleryProps {
   initialPreviews?: string[];
 }
 
-const getFinish = (fileName: string) => {
+const getFinish = (fileName: string, localPath?: string) => {
   const name = fileName.toUpperCase();
   if (name.includes("--GLOSSY") || name.includes("--GLOSS")) return "GLOSSY";
   if (name.includes("--MATT") && !name.includes("--MATTING")) return "MATT";
@@ -21,6 +21,7 @@ const getFinish = (fileName: string) => {
   if (name.includes("--PUNCHGL")) return "POSTER";
   if (name.includes("--LOVIN")) return "LOVELIN";
   if (name.includes("--TPH")) return "TYPHOON";
+  if (localPath && localPath.toLowerCase().includes("1200x1200")) return "GLOSSY";
   return "OTHER";
 };
 
@@ -42,8 +43,9 @@ const formatFileName = (name: string) => {
   return clean;
 };
 
-const getProductDetails = (fileName: string) => {
+const getProductDetails = (fileName: string, dimension?: string) => {
   const upper = fileName.toUpperCase();
+  const dimUpper = dimension ? dimension.toUpperCase() : "";
   if (upper.includes("TRIM")) return { price: 8, unit: "+vat/piece", isAccessory: true };
   if (upper.includes("SPACER")) return { price: 6, unit: "+vat/bag", isAccessory: true };
   if (upper.includes("WEDGE")) return { price: 6, unit: "+vat/bag", isAccessory: true };
@@ -51,6 +53,10 @@ const getProductDetails = (fileName: string) => {
   if (upper.includes("MATTING")) return { price: 6, unit: "+vat/sqm", isAccessory: true };
   // New Arrivals & Outdoor tiles are priced at £18
   if (upper.includes("AURL GRIGIO") || upper.includes("PAVE") || upper.includes("SALT CONCRETO") || upper.includes("SALTED CONCRETO") || upper.includes("OUTDOOR")) return { price: 18, unit: "m²", isAccessory: false };
+  // 300x600 tiles have a default price of £10
+  if (upper.includes("300X600") || dimUpper.includes("300X600") || dimUpper.includes("300X600 MM") || upper.includes("300X600MM")) {
+    return { price: 10, unit: "m²", isAccessory: false };
+  }
   // All other tiles default to £15
   return { price: 15, unit: "m²", isAccessory: false };
 };
@@ -153,6 +159,15 @@ const getPreviewUrl = (
     // Custom logic for matching pave paris in single_tiles
     if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
       if (normPreview.includes("pave") && normPreview.includes("paris")) {
+        return `/previews/${targetSize}/single_tiles/${preview}`;
+      }
+    }
+    
+    // Custom logic for matching poster pieces in single_tiles
+    if (normalizedFile.includes("poster") && normPreview.includes("poster")) {
+      const fileNum = normalizedFile.replace(/[^0-9]/g, "");
+      const previewNum = normPreview.replace(/[^0-9]/g, "");
+      if (fileNum && fileNum === previewNum) {
         return `/previews/${targetSize}/single_tiles/${preview}`;
       }
     }
@@ -305,7 +320,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
     const baseImages = decodedInitialImages.filter((img) => {
       const fileName = img.split("/").pop() || img;
       const upperName = fileName.toUpperCase();
-      const finish = getFinish(fileName);
+      const finish = getFinish(fileName, img);
       const isAccessory = /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(upperName);
 
       // Remove tile images that do not have a recognized finish
@@ -361,7 +376,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
         }
       }
       
-      const key = `${baseName}_${size}`;
+      const key = `${baseName.replace(/[^a-z0-9]/g, "")}_${size.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
       
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key)!.push(img);
@@ -372,7 +387,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
       if (images.length > 1) {
         const nonMatt = images.filter(img => {
           const fileName = img.split("/").pop() || img;
-          return getFinish(fileName) !== "MATT";
+          return getFinish(fileName, img) !== "MATT";
         });
         
         if (nonMatt.length > 0) {
@@ -394,7 +409,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
     const csSizes = new Set<string>();
     
     deduplicatedImages.forEach((img) => {
-      const isComingSoon = img.includes("comingsoon/");
+      const isComingSoon = img.includes("comingsoon/") || (img.includes("?") && new URLSearchParams(img.split("?")[1]).get("isComingSoon") === "true");
       
       let size = "OTHER";
       if (img.includes("?size=")) {
@@ -420,7 +435,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
       
       if (!isComingSoon) {
         const fileName = img.split("?")[0].split("/").pop() || img;
-        const finish = getFinish(fileName);
+        const finish = getFinish(fileName, img);
         if (finish !== "OTHER") finishes.add(finish);
       }
     });
@@ -434,8 +449,8 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
   const filteredTiles = useMemo(() => {
     return deduplicatedImages.filter((img) => {
       const fileName = img.split("?")[0].split("/").pop() || img;
-      const finish = getFinish(fileName);
-      const isComingSoon = img.includes("comingsoon/");
+      const finish = getFinish(fileName, img);
+      const isComingSoon = img.includes("comingsoon/") || (img.includes("?") && new URLSearchParams(img.split("?")[1]).get("isComingSoon") === "true");
       
       let size = "OTHER";
       if (img.includes("?size=")) {
@@ -608,7 +623,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
       )}
 
       {/* Dimensions Filter */}
-      {sizeFilter !== "accessories" && finishFilter !== "COMING SOON" && (
+      {finishFilter !== "COMING SOON" && (
         <div className="text-center">
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
             Dimensions
@@ -642,6 +657,19 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
                 {size}
               </Link>
             ))}
+
+            <Link
+              href={createFilterUrl("size", "accessories")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                sizeFilter === "accessories"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Accessories
+            </Link>
           </div>
         </div>
       )}
@@ -827,16 +855,34 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
         {filteredTiles.slice(0, visibleCount).map((imageName) => {
           const imageNameWithoutQuery = imageName.split("?")[0];
           const fileNameOnly = imageNameWithoutQuery.split("/").pop() || imageNameWithoutQuery;
-          const finish = getFinish(fileNameOnly);
-          const details = getProductDetails(fileNameOnly);
+          const finish = getFinish(fileNameOnly, imageName);
           const isPoster = fileNameOnly.toUpperCase().includes("POSTER");
           
           let displayName = formatFileName(fileNameOnly);
-          let displayPrice = details.price;
-          let displayOriginalPrice = details.price + 5;
           let category = "";
           let productSlug = "";
+          let isComingSoon = imageNameWithoutQuery.startsWith("comingsoon/");
+          let isOutOfStock = false;
           
+          // Determine dimensions
+          let dimension = "N/A";
+          if (imageName.includes("?size=")) {
+            dimension = imageName.split("?size=")[1].split("&")[0];
+          } else if (!imageName.startsWith("http")) {
+            const parts = imageNameWithoutQuery.split("/");
+            const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
+            if (sizeFolder) {
+              dimension = sizeFolder;
+            } else if (parts[0] !== "comingsoon" && parts[0].includes("x")) {
+              dimension = parts[0].split("?")[0] || "N/A";
+            }
+          }
+          dimension = dimension.toUpperCase();
+
+          const details = getProductDetails(fileNameOnly, dimension);
+          let displayPrice = details.price;
+          let displayOriginalPrice = details.price + 5;
+
           if (imageName.includes("?")) {
              const params = new URLSearchParams(imageName.split("?")[1]);
              if (params.has("name")) displayName = params.get("name")!;
@@ -854,37 +900,34 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
              if (params.has("slug")) {
                productSlug = params.get("slug")!;
              }
+             if (params.get("isComingSoon") === "true") {
+               isComingSoon = true;
+             }
+             if (params.get("isOutOfStock") === "true") {
+               isOutOfStock = true;
+             }
+          }
+          if (category === "Coming Soon") {
+             isComingSoon = true;
           }
 
           const detailPageUrl = productSlug ? `/products/${productSlug}` : `/products/${encodeURIComponent(imageName)}`;
 
-          // Determine dimensions
-          let dimension = "N/A";
-          if (imageName.includes("?size=")) {
-            dimension = imageName.split("?size=")[1].split("&")[0];
-          } else if (!imageName.startsWith("http")) {
-            const parts = imageNameWithoutQuery.split("/");
-            const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
-            if (sizeFolder) {
-              dimension = sizeFolder;
-            } else if (parts[0] !== "comingsoon" && parts[0].includes("x")) {
-              dimension = parts[0].split("?")[0] || "N/A";
-            }
-          }
-          dimension = dimension.toUpperCase();
-
           // Generate preview image
           const previewUrl = getPreviewUrl(imageName, dimension, previewPaths);
 
-          return (
-            <div key={imageName} className="group flex flex-col">
-              {/* Boxed Aspect Ratio like the original design */}
-              <Link href={detailPageUrl} className="relative w-full aspect-[5/4] bg-[#fbfbfb] flex items-center justify-center p-6 mb-5 overflow-hidden group/image cursor-pointer">
-                {/* Main Tile Image */}
+            return (
+              <div key={imageName} className="group flex flex-col">
+                {/* Boxed Aspect Ratio like the original design */}
+                <Link
+                  href={detailPageUrl}
+                  className="relative w-full aspect-[5/4] bg-[#fbfbfb] block mb-5 overflow-hidden group/image cursor-pointer"
+                >
+                  {/* Main Tile Image */}
                 <img
                   src={imageName.startsWith("http") ? imageNameWithoutQuery : imageNameWithoutQuery.startsWith("comingsoon/") ? `/${imageNameWithoutQuery.split('/').map(s => encodeURIComponent(s)).join('/')}${imgVersion ? `?v=${imgVersion}` : ""}` : `/tiles/${imageNameWithoutQuery.split('/').map(s => encodeURIComponent(s)).join('/')}${imgVersion ? `?v=${imgVersion}` : ""}`}
                   alt={fileNameOnly}
-                  className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${previewUrl ? 'group-hover/image:opacity-0' : 'group-hover/image:scale-105'}`}
+                  className={`absolute inset-0 w-full h-full p-6 object-contain mix-blend-multiply transition-opacity duration-300 ${previewUrl ? 'group-hover/image:opacity-0' : 'group-hover/image:scale-105'}`}
                 />
 
                 {/* Hover Preview Image */}
@@ -892,7 +935,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
                   <img
                     src={previewUrl}
                     alt={`${displayName} Preview`}
-                    className="object-cover absolute inset-0 w-full h-full opacity-0 group-hover/image:opacity-100 transition-opacity duration-500 z-10"
+                    className="object-contain absolute inset-0 w-full h-full p-6 opacity-0 group-hover/image:opacity-100 transition-opacity duration-500 z-10"
                   />
                 )}
 
@@ -919,7 +962,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
                 </Link>
 
                 <div className="flex items-end gap-2 mb-5">
-                  {imageNameWithoutQuery.startsWith("comingsoon/") ? (
+                  {isComingSoon ? (
                     <span className="text-[14px] font-bold text-gray-400 uppercase tracking-wider">Coming Soon</span>
                   ) : isPoster ? (
                     <span className="text-[16px] font-bold text-[#4a2c2a]">POA</span>
@@ -941,12 +984,19 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
                 </div>
 
                 <div className="mt-auto">
-                  {imageNameWithoutQuery.startsWith("comingsoon/") ? (
+                  {isComingSoon ? (
                     <button
                       disabled
                       className="w-full flex justify-center bg-gray-50 text-gray-400 py-3 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed border border-gray-100"
                     >
                       Coming Soon
+                    </button>
+                  ) : isOutOfStock ? (
+                    <button
+                      disabled
+                      className="w-full flex justify-center bg-gray-50 text-gray-400 py-3 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed border border-gray-100"
+                    >
+                      Out of Stock
                     </button>
                   ) : isPoster ? (
                     <Link

@@ -17,9 +17,18 @@ const getProductImagePath = (product: any) => {
   if (!product || !product.image) return "/placeholder-tile.jpg";
   if (product.image.startsWith("http")) return product.image;
   if (product.image.startsWith("/")) return product.image;
+  if (product.image.toLowerCase().includes("comingsoon/")) {
+    return product.image.startsWith("/") ? product.image : `/${product.image}`;
+  }
   
   const category = (product.category || "").toLowerCase();
   const size = (product.size || "").toLowerCase();
+  const isComingSoon = product.is_coming_soon || category === "coming soon";
+  
+  if (isComingSoon && size === "600x1200") {
+    return `/comingsoon/600x1200/${product.image}`;
+  }
+  
   const imgName = product.image.toUpperCase();
   
   if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
@@ -221,6 +230,7 @@ export default function CheckoutPage() {
     const { name, value } = e.target;
     let updatedValue = value;
     if (name === "postcode") updatedValue = value.toUpperCase();
+    if (name === "phone") updatedValue = value.replace(/\D/g, "");
     setFormData((prev) => ({ ...prev, [name]: updatedValue }));
     validateField(name, updatedValue);
   };
@@ -473,9 +483,10 @@ export default function CheckoutPage() {
                           <div className="relative w-16 h-16 flex-shrink-0">
                             <div className="w-full h-full bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden relative">
                               <Image 
-                                src={getProductImagePath(product)} 
+                                src={getProductImagePath(product).split("?")[0]} 
                                 alt={product.name} 
                                 fill 
+                                unoptimized
                                 className="object-cover"
                               />
                             </div>

@@ -22,6 +22,8 @@ type WishlistProduct = {
   discount_price: number;
   category: string;
   size: string;
+  isComingSoon: boolean;
+  isOutOfStock: boolean;
 };
 
 const getProductDetails = (fileName: string) => {
@@ -169,8 +171,10 @@ export default function WishlistPage() {
       const sizeParam = params.get("size");
 
       const name = nameParam ? decodeURIComponent(nameParam) : formatFileName(fileNameOnly);
-      const price = priceParam ? parseFloat(priceParam) : details.price;
-      const discountPrice = discountParam ? parseFloat(discountParam) : (details.isAccessory ? 0 : price + 5);
+      const basePrice = priceParam ? parseFloat(priceParam) : details.price;
+      const parsedDiscount = discountParam ? parseFloat(discountParam) : 0;
+      const price = parsedDiscount > 0 ? parsedDiscount : basePrice;
+      const discountPrice = parsedDiscount > 0 ? basePrice : (details.isAccessory ? 0 : basePrice + 5);
       const category = categoryParam ? decodeURIComponent(categoryParam) : getCategory(fileNameOnly);
       const size = sizeParam ? decodeURIComponent(sizeParam) : (fullPath.split("/")[0] || "N/A");
 
@@ -184,6 +188,12 @@ export default function WishlistPage() {
         resolvedImage = `/tiles/${cleanPath.split('/').map(s => encodeURIComponent(s)).join('/')}`;
       }
 
+      const isComingSoonParam = params.get("isComingSoon");
+      const isOutOfStockParam = params.get("isOutOfStock");
+
+      const isComingSoon = isComingSoonParam === "true" || cleanPath.startsWith("comingsoon/");
+      const isOutOfStock = isOutOfStockParam === "true";
+
       return {
         id: fileNameOnly,
         name,
@@ -193,6 +203,8 @@ export default function WishlistPage() {
         discount_price: discountPrice,
         category,
         size,
+        isComingSoon,
+        isOutOfStock
       };
     }).filter(Boolean) as WishlistProduct[];
   }, [wishlistSlugs, allTiles]);
@@ -249,7 +261,9 @@ export default function WishlistPage() {
                 const imagePath = product.image;
                 const isPoster = product.id.toUpperCase().includes("POSTER");
                 const price = product.price;
-                const isComingSoon = product.slug.includes("comingsoon/") || product.category === "Coming Soon";
+                const isComingSoon = product.isComingSoon;
+                const isOutOfStock = product.isOutOfStock;
+                const isCarrara = product.name.toUpperCase().includes("CARRARA") || product.image.toUpperCase().includes("CARRARA");
 
                 return (
                   <div key={product.id} className="group flex flex-col relative">
@@ -269,14 +283,15 @@ export default function WishlistPage() {
                           ? `/products/${new URLSearchParams(product.slug.split("?")[1]).get("slug")}`
                           : `/products/${encodeURIComponent(product.slug)}`
                       }
-                      className="relative w-full aspect-[5/4] bg-[#fbfbfb] flex items-center justify-center p-6 mb-5 overflow-hidden group/image cursor-pointer border border-gray-50 hover:border-gray-100 transition-colors"
+                      className={`relative w-full aspect-[5/4] ${isCarrara ? 'bg-[#f4eedb]' : 'bg-[#fbfbfb]'} block mb-5 overflow-hidden group/image cursor-pointer border border-gray-50 hover:border-gray-100 transition-colors`}
                     >
                       <Image
                         src={imagePath}
                         alt={product.name}
                         fill
+                        style={{ objectFit: "contain", padding: "2rem" }}
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                        className="object-contain p-8 mix-blend-multiply transition-transform duration-700 group-hover/image:scale-105"
+                        className="mix-blend-multiply transition-transform duration-700 group-hover/image:scale-105"
                       />
 
                       {/* View Details Overlay */}
@@ -336,6 +351,13 @@ export default function WishlistPage() {
                             className="w-full bg-gray-50 text-gray-400 py-3.5 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed border border-gray-100"
                           >
                             Coming Soon
+                          </button>
+                        ) : isOutOfStock ? (
+                          <button
+                            disabled={true}
+                            className="w-full bg-gray-50 text-gray-400 py-3.5 text-[10px] font-bold uppercase tracking-widest cursor-not-allowed border border-gray-100"
+                          >
+                            Out of Stock
                           </button>
                         ) : isPoster ? (
                           <button

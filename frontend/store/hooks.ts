@@ -1,7 +1,21 @@
-// store/hooks.ts
-import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
+import { useDispatch, useSelector, TypedUseSelectorHook, ReactReduxContext } from 'react-redux';
+import { useContext } from 'react';
 import type { RootState, AppDispatch } from './store';
+import { store as reduxStore } from './store';
 
-// Use these throughout your app instead of plain `useDispatch` and `useSelector`
-export const useAppDispatch = () => useDispatch<AppDispatch>();
-export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+// Safe hooks that prevent crashes during Next.js build-time static pre-rendering
+export const useAppDispatch = () => {
+  const context = useContext(ReactReduxContext);
+  if (!context) {
+    return (() => {}) as any;
+  }
+  return useDispatch<AppDispatch>();
+};
+
+export const useAppSelector: TypedUseSelectorHook<RootState> = (selector) => {
+  const context = useContext(ReactReduxContext);
+  if (!context) {
+    return selector(reduxStore.getState());
+  }
+  return useSelector(selector);
+};

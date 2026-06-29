@@ -229,6 +229,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { addToCartAsync } from '@/store/slices/cartSlice';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
+import AddToCartButton from '@/components/common/AddToCartButton';
 
 const getPreviewUrl = (
   imagePath: string,
@@ -295,24 +296,30 @@ const getPreviewUrl = (
   if (sizeFilteredPaths.length === 0) return null;
 
   // Split into single_tiles and combo_tiles preview arrays for the current size
-  const singleTiles: string[] = [];
-  const comboTiles: string[] = [];
+  const singleTiles: { file: string; subPath: string }[] = [];
+  const comboTiles: { file: string; subPath: string }[] = [];
 
   for (const pathStr of sizeFilteredPaths) {
     const parts = pathStr.replace(/\\/g, "/").split("/");
-    const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
-    const file = parts[2];   // e.g. "alexa_beige_r1_preview.png"
-    if (file) {
-      if (folder === "single_tiles") {
-        singleTiles.push(file);
-      } else if (folder === "combo_tiles") {
-        comboTiles.push(file);
+    if (parts.length === 2) {
+      // Direct file in size directory, treat it as single_tiles
+      singleTiles.push({ file: parts[1], subPath: "" });
+    } else if (parts.length > 2) {
+      const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
+      const file = parts[2];
+      if (file) {
+        if (folder === "single_tiles") {
+          singleTiles.push({ file, subPath: "single_tiles" });
+        } else if (folder === "combo_tiles") {
+          comboTiles.push({ file, subPath: "combo_tiles" });
+        }
       }
     }
   }
 
   // 1. Check single_tiles
-  for (const preview of singleTiles) {
+  for (const item of singleTiles) {
+    const preview = item.file;
     let normPreview = normalize(preview);
     if (normPreview.endsWith("preview")) {
       normPreview = normPreview.slice(0, -7);
@@ -321,19 +328,28 @@ const getPreviewUrl = (
     // Custom logic for matching aurl grigio in single_tiles
     if (normalizedFile.includes("aurl") && normalizedFile.includes("grigio")) {
       if (normPreview.includes("aurl") && normPreview.includes("grigio")) {
-        return `/previews/${targetSize}/single_tiles/${preview}`;
+        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
       }
     }
     
     // Custom logic for matching pave paris in single_tiles
     if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
       if (normPreview.includes("pave") && normPreview.includes("paris")) {
-        return `/previews/${targetSize}/single_tiles/${preview}`;
+        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+      }
+    }
+    
+    // Custom logic for matching poster pieces in single_tiles
+    if (normalizedFile.includes("poster") && normPreview.includes("poster")) {
+      const fileNum = normalizedFile.replace(/[^0-9]/g, "");
+      const previewNum = normPreview.replace(/[^0-9]/g, "");
+      if (fileNum && fileNum === previewNum) {
+        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
       }
     }
     
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/${targetSize}/single_tiles/${preview}`;
+      return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
     }
   }
 
@@ -379,36 +395,39 @@ const getPreviewUrl = (
 
   if (matchedGroup) {
     // Try current variant match first
-    for (const preview of comboTiles) {
+    for (const item of comboTiles) {
+      const preview = item.file;
       const normPreview = normalize(preview);
-      for (const item of matchedGroup) {
-        const normItem = normalize(item);
+      for (const itemMatch of matchedGroup) {
+        const normItem = normalize(itemMatch);
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          if (currentVariantMatch === item.toLowerCase()) {
+          if (currentVariantMatch === itemMatch.toLowerCase()) {
             if (normPreview === normalize(currentVariantMatch)) {
-              return `/previews/${targetSize}/combo_tiles/${preview}`;
+              return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
             }
           }
         }
       }
     }
     // Fall back to any group match
-    for (const preview of comboTiles) {
+    for (const item of comboTiles) {
+      const preview = item.file;
       const normPreview = normalize(preview);
-      for (const item of matchedGroup) {
-        const normItem = normalize(item);
+      for (const itemMatch of matchedGroup) {
+        const normItem = normalize(itemMatch);
         if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          return `/previews/${targetSize}/combo_tiles/${preview}`;
+          return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
         }
       }
     }
   }
 
   // 3. Direct match combo_tiles
-  for (const preview of comboTiles) {
+  for (const item of comboTiles) {
+    const preview = item.file;
     const normPreview = normalize(preview);
     if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/${targetSize}/combo_tiles/${preview}`;
+      return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
     }
   }
 
@@ -436,25 +455,136 @@ const ALL_PRODUCTS = [
   { name: "STANZA GREY R1", size: "600x1200 mm", price: "15", reviews: 326, img: "/tiles/600x1200/STANZA GREY R1--CARVING.jpg" },
 ];
 
+interface TopSellingProduct {
+  id: string;
+  name: string;
+  slug: string;
+  size: string;
+  price: number;
+  reviews: number;
+  img: string;
+  category: string;
+}
+
 export default function TopSellingTiles() {
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [randomizedTiles, setRandomizedTiles] = useState<typeof ALL_PRODUCTS>([]);
+  const [randomizedTiles, setRandomizedTiles] = useState<TopSellingProduct[]>([]);
   const [previewPaths, setPreviewPaths] = useState<string[]>([]);
   const dispatch = useAppDispatch();
   const { token } = useAppSelector((state) => state.auth);
   const { loading } = useAppSelector((state) => state.cart);
 
   useEffect(() => {
-    const shuffle = () => {
-      const result = [...ALL_PRODUCTS]
-        .sort(() => Math.random() - 0.5); // Removed the slice so ALL tiles are shown
-      setRandomizedTiles(result);
-    };
-    shuffle();
     import("@/app/actions").then((module) => {
-      module.getAllPreviewPaths().then((paths) => setPreviewPaths(paths));
+      Promise.all([
+        module.getActiveTilePaths(),
+        module.getAllPreviewPaths()
+      ]).then(([activePaths, previewPaths]) => {
+        setPreviewPaths(previewPaths);
+        
+        // Map active paths to product format
+        const dynamicProducts = activePaths.map((pathStr) => {
+          const parts = pathStr.split("?");
+          const imagePath = parts[0];
+          const queryStr = parts[1] || "";
+          const params = new URLSearchParams(queryStr);
+          
+          const name = params.get("name") || imagePath.split("/").pop()?.replace(/\.[^/.]+$/, "") || "Tile";
+          const price = params.get("discountPrice") || params.get("price") || "15";
+          const size = params.get("size") || imagePath.split("/")[0] || "600x1200";
+          const slug = params.get("slug") || name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+          const filename = imagePath.split("/").pop() || "";
+          const category = params.get("category") || "";
+          
+          let img = "";
+          if (imagePath.startsWith("http")) {
+            img = imagePath;
+          } else if (imagePath.startsWith("comingsoon/")) {
+            img = `/${imagePath}`;
+          } else {
+            img = `/tiles/${imagePath}`;
+          }
+          
+          return {
+            id: filename,
+            name,
+            slug,
+            size: size + " mm",
+            price: parseFloat(price),
+            reviews: Math.floor(Math.random() * 320) + 30,
+            img,
+            category
+          };
+        });
+
+        // Filter: Keep only products that have a preview
+        const productsWithPreview = dynamicProducts.filter((p) => {
+          let dimension = "N/A";
+          if (p.img.includes("?size=")) {
+            dimension = p.img.split("?size=")[1].split("&")[0];
+          } else if (!p.img.startsWith("http")) {
+            const parts = p.img.replace(/^\//, "").split("/");
+            dimension = parts[1] || parts[0] || "N/A";
+          }
+          dimension = dimension.toUpperCase();
+          if (dimension === "TILES" || dimension === "N/A") {
+            dimension = p.size ? p.size.replace(" mm", "").trim() : "N/A";
+          }
+          
+          const previewUrl = getPreviewUrl(p.img, dimension, previewPaths);
+          return !!previewUrl;
+        });
+
+        if (productsWithPreview.length > 0) {
+          // Keep poster tiles at the end of the slider
+          const posters = productsWithPreview.filter(p => 
+            p.name.toUpperCase().includes("POSTER") || 
+            p.img.toUpperCase().includes("POSTER") || 
+            p.category.toUpperCase().includes("POSTER")
+          );
+          const nonPosters = productsWithPreview.filter(p => 
+            !(p.name.toUpperCase().includes("POSTER") || 
+              p.img.toUpperCase().includes("POSTER") || 
+              p.category.toUpperCase().includes("POSTER"))
+          );
+          
+          const shuffledNonPosters = [...nonPosters].sort(() => Math.random() - 0.5);
+          const shuffledPosters = [...posters].sort(() => Math.random() - 0.5);
+          
+          setRandomizedTiles([...shuffledNonPosters, ...shuffledPosters]);
+        } else {
+          const fallback: TopSellingProduct[] = ALL_PRODUCTS.map((prod) => {
+            const filename = prod.img.split("/").pop() || "";
+            const slug = prod.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+            return {
+              id: filename,
+              name: prod.name,
+              slug,
+              size: prod.size,
+              price: parseFloat(prod.price),
+              reviews: prod.reviews,
+              img: prod.img,
+              category: ""
+            };
+          });
+          
+          const posters = fallback.filter(p => 
+            p.name.toUpperCase().includes("POSTER") || 
+            p.img.toUpperCase().includes("POSTER")
+          );
+          const nonPosters = fallback.filter(p => 
+            !(p.name.toUpperCase().includes("POSTER") || 
+              p.img.toUpperCase().includes("POSTER"))
+          );
+          
+          const shuffledNonPosters = [...nonPosters].sort(() => Math.random() - 0.5);
+          const shuffledPosters = [...posters].sort(() => Math.random() - 0.5);
+          
+          setRandomizedTiles([...shuffledNonPosters, ...shuffledPosters]);
+        }
+      });
     });
   }, []);
 
@@ -506,11 +636,22 @@ export default function TopSellingTiles() {
         </div>
 
         <div className="relative overflow-hidden group">
-          <motion.div 
-            className="flex gap-8 w-max"
-            animate={{ x: ["0%", "-50%"] }}
-            transition={{ ease: "linear", duration: 30, repeat: Infinity }}
-          >
+          <style dangerouslySetInnerHTML={{ __html: `
+            @keyframes marquee {
+              0% { transform: translate3d(0, 0, 0); }
+              100% { transform: translate3d(-50%, 0, 0); }
+            }
+            .marquee-track {
+              display: flex;
+              gap: 2rem;
+              width: max-content;
+              animation: marquee 150s linear infinite;
+            }
+            .marquee-track:hover {
+              animation-play-state: paused;
+            }
+          `}} />
+          <div className="marquee-track">
             {[...randomizedTiles, ...randomizedTiles].map((tile, index) => {
               const isPOA = tile.name.toUpperCase().includes("POSTER");
 
@@ -524,7 +665,10 @@ export default function TopSellingTiles() {
                   viewport={{ once: true, amount: 0.1 }}
                 >
                   
-                  <div className="relative aspect-[3/4] flex items-center justify-center bg-[#FBFBFB] mb-5 p-6 rounded-[4px] overflow-hidden">
+                  <Link 
+                    href={`/products/${tile.slug}`}
+                    className="relative aspect-[3/4] block bg-[#FBFBFB] mb-5 p-6 rounded-[4px] overflow-hidden cursor-pointer group/image"
+                  >
                     {(() => {
 
                       let dimension = "N/A";
@@ -543,18 +687,30 @@ export default function TopSellingTiles() {
 
                       return (
                         <>
-                          <Image 
-                            src={tile.img} 
-                            alt={tile.name}
-                            width={280}
-                            height={200}
-                            className={`transition-opacity duration-300 object-contain max-h-full w-auto ${previewUrl ? 'group-hover/card:opacity-0' : 'group-hover/card:scale-105'}`}
-                          />
-                          {previewUrl && (
-                            <img
-                              src={previewUrl}
-                              alt={`${tile.name} Preview`}
-                              className="object-cover absolute inset-0 w-full h-full opacity-0 group-hover/card:opacity-100 transition-opacity duration-500 z-10"
+                          {previewUrl ? (
+                            <>
+                              <img
+                                src={previewUrl}
+                                alt={`${tile.name} Preview`}
+                                className="object-contain absolute inset-0 w-full h-full transition-opacity duration-300 group-hover/card:opacity-0 z-10 p-6"
+                              />
+                              <Image 
+                                src={tile.img.split("?")[0]} 
+                                alt={tile.name}
+                                fill
+                                style={{ objectFit: 'contain', padding: '1.5rem' }}
+                                className="transition-opacity duration-300 opacity-0 group-hover/card:opacity-100"
+                                sizes="280px"
+                              />
+                            </>
+                          ) : (
+                            <Image 
+                              src={tile.img.split("?")[0]} 
+                              alt={tile.name}
+                              fill
+                              style={{ objectFit: 'contain', padding: '1.5rem' }}
+                              className="transition-transform duration-300 group-hover/card:scale-105"
+                              sizes="280px"
                             />
                           )}
                         </>
@@ -565,11 +721,13 @@ export default function TopSellingTiles() {
                         Consult Only
                       </div>
                     )}
-                  </div>
+                  </Link>
 
-                  <h3 className="text-[13px] font-bold mb-1 uppercase tracking-tight leading-snug min-h-[18px]">
-                    {tile.name}
-                  </h3>
+                  <Link href={`/products/${tile.slug}`} className="hover:text-[#4a2c2a]/70 transition-colors">
+                    <h3 className="text-[13px] font-bold mb-1 uppercase tracking-tight leading-snug min-h-[18px] cursor-pointer">
+                      {tile.name}
+                    </h3>
+                  </Link>
                   
                   <div className="flex items-center gap-2 mb-3">
                     <div className="flex text-[#4a2c2a] text-[9px] tracking-widest">★★★★★</div>
@@ -590,18 +748,23 @@ export default function TopSellingTiles() {
                       Inquire for Price
                     </Link>
                   ) : (
-                    <button 
-                      onClick={() => handleAddToCart(tile)}
-                      disabled={loading}
-                      className="w-full py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all bg-[#4a2c2a] text-white opacity-90 hover:opacity-100 active:scale-[0.98]"
-                    >
-                      Add to Cart
-                    </button>
+                    <div className="w-full">
+                      <AddToCartButton 
+                        product={{
+                          id: tile.id,
+                          name: tile.name,
+                          image: tile.img,
+                          price: tile.price,
+                          category: tile.category,
+                          size: tile.size
+                        }}
+                      />
+                    </div>
                   )}
                 </motion.div>
               );
             })}
-          </motion.div>
+          </div>
         </div>
       </main>
     </section>

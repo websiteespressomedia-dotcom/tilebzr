@@ -133,9 +133,18 @@ const getProductImagePath = (product: any) => {
   if (!product || !product.image) return "/placeholder-tile.jpg";
   if (product.image.startsWith("http")) return product.image;
   if (product.image.startsWith("/")) return product.image;
+  if (product.image.toLowerCase().includes("comingsoon/")) {
+    return product.image.startsWith("/") ? product.image : `/${product.image}`;
+  }
   
   const category = (product.category || "").toLowerCase();
   const size = (product.size || "").toLowerCase();
+  const isComingSoon = product.is_coming_soon || category === "coming soon";
+  
+  if (isComingSoon && size === "600x1200") {
+    return `/comingsoon/600x1200/${product.image}`;
+  }
+  
   const imgName = product.image.toUpperCase();
   
   if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
@@ -247,33 +256,8 @@ export default function CartDrawer({
     return acc + (boxes * 29);
   }, 0);
 
-  const fullPallets = Math.floor(totalWeight / 1000);
-  const remainderWeight = totalWeight % 1000;
-  let partialPallet = "";
-  if (remainderWeight > 0) {
-    if (remainderWeight <= 30 && fullPallets === 0) partialPallet = "1 PARCEL";
-    else if (remainderWeight <= 250) partialPallet = "1 QUARTER";
-    else if (remainderWeight <= 500) partialPallet = "1 HALF";
-    else if (remainderWeight <= 750) partialPallet = "1 FULL LIGHT";
-    else partialPallet = "1 FULL"; 
-  }
-  
-  let displayPallet = "0";
-  if (fullPallets > 0) {
-    if (partialPallet && partialPallet !== "1 FULL") {
-      displayPallet = `${fullPallets} FULL & ${partialPallet}`;
-    } else if (partialPallet === "1 FULL") {
-      displayPallet = `${fullPallets + 1} FULL`;
-    } else {
-      displayPallet = `${fullPallets} FULL`;
-    }
-  } else {
-    if (partialPallet) {
-      displayPallet = partialPallet;
-    } else {
-      displayPallet = "0";
-    }
-  }
+  const totalPallets = Math.ceil(totalWeight / 1000);
+  const displayPallet = totalPallets > 0 ? `${totalPallets} FULL` : "0";
 
   useEffect(() => {
     if (isOpen) {
@@ -383,9 +367,10 @@ export default function CartDrawer({
                   {" "}
                   <div className="relative w-24 h-24 flex-shrink-0 bg-[#f9f9f9] rounded-sm">
                     <Image
-                      src={getProductImagePath(product)}
+                      src={getProductImagePath(product).split("?")[0]}
                       alt={product.name}
                       fill
+                      unoptimized
                       sizes="90vw"
                       className="object-cover"
                     />

@@ -43,32 +43,12 @@ export async function calculateShippingRateInternal(postcode: string, totalWeigh
     throw new Error('Error fetching rates for the matched zone');
   }
 
-  // Calculate pallets
-  const fullPallets = Math.floor(totalWeight / 1000);
-  const remainderWeight = totalWeight % 1000;
+  // Calculate pallets (round up weight to the nearest 1000kg as full pallets)
+  const totalPallets = Math.ceil(totalWeight / 1000);
   
-  let partialType = '';
-  if (remainderWeight > 0) {
-    if (remainderWeight <= 30 && fullPallets === 0) partialType = 'PARCEL';
-    else if (remainderWeight <= 250) partialType = 'QUARTER';
-    else if (remainderWeight <= 500) partialType = 'HALF';
-    else if (remainderWeight <= 750) partialType = 'FULL LIGHT';
-    else partialType = 'FULL';
-  }
-
-  // Sum up prices
-  let totalLogistics = 0;
+  // Sum up prices based only on FULL pallet rates
   const fullRate = rates.find(r => r.pallet_type === 'FULL')?.price || 0;
-  
-  if (fullPallets > 0) {
-    totalLogistics += fullPallets * fullRate;
-  }
-  
-  if (partialType) {
-    // Find the specific partial rate, or fallback to FULL rate if not found
-    const partialRate = rates.find(r => r.pallet_type === partialType)?.price || fullRate;
-    totalLogistics += partialRate;
-  }
+  const totalLogistics = totalPallets * fullRate;
 
   return { price: Math.round(totalLogistics), zone: matchedZone.zone_name };
 }

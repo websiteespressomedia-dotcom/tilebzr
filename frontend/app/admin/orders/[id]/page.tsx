@@ -82,6 +82,9 @@ const getProductImagePath = (image: string | undefined | null, category?: string
   if (!image) return "/placeholder-tile.jpg";
   if (image.startsWith("http")) return image;
   if (image.startsWith("/tiles/")) return image;
+  if (image.toLowerCase().includes("comingsoon/")) {
+    return image.startsWith("/") ? image : `/${image}`;
+  }
 
   const cleanImage = image.trim();
   const upper = cleanImage.toUpperCase();
@@ -89,6 +92,10 @@ const getProductImagePath = (image: string | undefined | null, category?: string
   // Determine category and size
   const resolvedCategory = (category || "").toLowerCase();
   const resolvedSize = (size || "").toLowerCase();
+  
+  if (resolvedCategory === "coming soon" && resolvedSize === "600x1200") {
+    return `/comingsoon/600x1200/${cleanImage}`;
+  }
 
   const isAccessory = resolvedCategory === "accessories" || 
     upper.includes("TRIM") || 
@@ -118,7 +125,9 @@ const getProductImagePath = (image: string | undefined | null, category?: string
   // Determine size
   let folderSize = resolvedSize;
   if (!folderSize) {
-    if (upper.includes("600X1200")) {
+    if (upper.includes("1200X1200")) {
+      folderSize = "1200x1200";
+    } else if (upper.includes("600X1200")) {
       folderSize = "600x1200";
     } else if (upper.includes("300X600")) {
       folderSize = "300x600";

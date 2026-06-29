@@ -18,7 +18,7 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     <>
       <PromoPopup />
       <Navbar />
-      <main>{children}</main>
+      <main className="pt-[32px] md:pt-[36px]">{children}</main>
       <Footer />
     </>
   );

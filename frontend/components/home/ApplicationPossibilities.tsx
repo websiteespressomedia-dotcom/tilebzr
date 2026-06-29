@@ -14,12 +14,13 @@ export default function ApplicationPossibilities() {
               </h2>
             </div>
             
-            <div className="relative aspect-[1.5/1] w-full overflow-hidden bg-white group">
+            <div className="relative aspect-[3/2] w-full overflow-hidden bg-white group">
               <Image
                 src="/images/application-possibilities.png"
                 alt="Application possibilities for tiles"
                 fill
-                className="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+                style={{ objectFit: "contain" }}
+                className="transition-transform duration-700 ease-out group-hover:scale-[1.02]"
                 sizes="(max-width: 1024px) 100vw, 45vw"
               />
             </div>
@@ -34,12 +35,13 @@ export default function ApplicationPossibilities() {
               {/* No paragraph as per user request */}
             </div>
             
-            <div className="relative aspect-[1.5/1] w-full overflow-hidden bg-white group">
+            <div className="relative aspect-[3/2] w-full overflow-hidden bg-white group">
               <Image
-                src="/images/Amessed with the features.png"
-                alt="Amessed with the features"
+                src="/images/amassed-features.png"
+                alt="Amassed with features"
                 fill
-                className="object-contain transition-transform duration-700 ease-out group-hover:scale-[1.02]"
+                style={{ objectFit: "contain" }}
+                className="transition-transform duration-700 ease-out group-hover:scale-[1.02]"
                 sizes="(max-width: 1024px) 100vw, 45vw"
               />
             </div>

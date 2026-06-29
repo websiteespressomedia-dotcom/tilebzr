@@ -2,11 +2,29 @@
 
 import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { registerUser, googleRegisterUser } from '@/store/slices/authSlice';
+import { registerUser, googleRegisterUser, googleLoginUser } from '@/store/slices/authSlice';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
 import { GoogleLogin } from '@react-oauth/google';
+
+const COUNTRY_CODES = [
+  { code: "+44", label: "UK (+44)" },
+  { code: "+91", label: "India (+91)" },
+  { code: "+1", label: "US/CA (+1)" },
+  { code: "+971", label: "UAE (+971)" },
+  { code: "+966", label: "Saudi (+966)" },
+  { code: "+49", label: "Germany (+49)" },
+  { code: "+33", label: "France (+33)" },
+  { code: "+61", label: "Australia (+61)" },
+  { code: "+39", label: "Italy (+39)" },
+  { code: "+34", label: "Spain (+34)" },
+  { code: "+86", label: "China (+86)" },
+  { code: "+353", label: "Ireland (+353)" },
+  { code: "+64", label: "New Zealand (+64)" },
+  { code: "+92", label: "Pakistan (+92)" },
+  { code: "+880", label: "Bangladesh (+880)" },
+];
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -15,6 +33,9 @@ export default function RegisterPage() {
     password: '',
     phone_number: ''
   });
+
+  const [countryCode, setCountryCode] = useState('+44');
+  const [googleCountryCode, setGoogleCountryCode] = useState('+44');
 
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -31,15 +52,19 @@ export default function RegisterPage() {
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
+    if (e.target.name === 'phone_number') {
+      value = value.replace(/\D/g, "");
+    }
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: value
     });
     setValidationError(''); // Clear validation error when user types
   };
 
   const validatePhone = (phone: string) => {
-    const phoneRegex = /^[6-9]\d{9}$/;
+    const phoneRegex = /^\d{9,11}$/;
     return phoneRegex.test(phone);
   };
 
@@ -47,12 +72,23 @@ export default function RegisterPage() {
     e.preventDefault();
     setValidationError('');
 
-    if (!validatePhone(formData.phone_number)) {
-      setValidationError("Please enter a valid 10-digit mobile number");
+    let cleanPhone = formData.phone_number.trim().replace(/\s+/g, '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = cleanPhone.slice(1);
+    }
+
+    if (!validatePhone(cleanPhone)) {
+      setValidationError("Please enter a valid 9-11 digit mobile number");
       return;
     }
 
-    const result = await dispatch(registerUser(formData));
+    const fullPhoneNumber = `${countryCode}${cleanPhone}`;
+    const submissionData = {
+      ...formData,
+      phone_number: fullPhoneNumber
+    };
+
+    const result = await dispatch(registerUser(submissionData));
 
     if (registerUser.fulfilled.match(result)) {
       const data = result.payload;
@@ -69,8 +105,19 @@ export default function RegisterPage() {
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     if (credentialResponse.credential) {
-      setGoogleToken(credentialResponse.credential);
       setValidationError('');
+      const result = await dispatch(googleLoginUser(credentialResponse.credential));
+      if (googleLoginUser.fulfilled.match(result)) {
+        const user = result.payload.user;
+        if (user?.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/');
+        }
+      } else {
+        console.error("Google register failed:", (result as any).payload || (result as any).error);
+        setValidationError(typeof result.payload === 'string' ? result.payload : 'Google register failed');
+      }
     }
   };
   
@@ -80,12 +127,18 @@ export default function RegisterPage() {
 
     if (!googleToken || !googlePhoneNumber) return;
 
-    if (!validatePhone(googlePhoneNumber)) {
-      setValidationError("Please enter a valid 10-digit mobile number");
+    let cleanPhone = googlePhoneNumber.trim().replace(/\s+/g, '');
+    if (cleanPhone.startsWith('0')) {
+      cleanPhone = cleanPhone.slice(1);
+    }
+
+    if (!validatePhone(cleanPhone)) {
+      setValidationError("Please enter a valid 9-11 digit mobile number");
       return;
     }
     
-    const result = await dispatch(googleRegisterUser({ token: googleToken, phone_number: googlePhoneNumber }));
+    const fullPhoneNumber = `${googleCountryCode}${cleanPhone}`;
+    const result = await dispatch(googleRegisterUser({ token: googleToken, phone_number: fullPhoneNumber }));
     if (googleRegisterUser.fulfilled.match(result)) {
       const user = result.payload.user;
       if (user?.role === 'admin') {
@@ -116,18 +169,31 @@ export default function RegisterPage() {
               <label htmlFor="phone_number" className="text-[10px] text-[#4a2c2a] font-bold uppercase tracking-tight opacity-60">
                 Mobile Number
               </label>
-              <input
-                id="phone_number"
-                type="tel"
-                required
-                placeholder="9876543210"
-                value={googlePhoneNumber}
-                onChange={(e) => {
-                  setGooglePhoneNumber(e.target.value);
-                  setValidationError('');
-                }}
-                className="w-full mt-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm transition-colors"
-              />
+              <div className="flex gap-2 mt-1">
+                <select
+                  value={googleCountryCode}
+                  onChange={(e) => setGoogleCountryCode(e.target.value)}
+                  className="p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm bg-white cursor-pointer"
+                >
+                  {COUNTRY_CODES.map((item) => (
+                    <option key={item.code} value={item.code}>
+                      {item.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  id="phone_number"
+                  type="tel"
+                  required
+                  placeholder="7123456789"
+                  value={googlePhoneNumber}
+                  onChange={(e) => {
+                    setGooglePhoneNumber(e.target.value.replace(/\D/g, ""));
+                    setValidationError('');
+                  }}
+                  className="flex-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm transition-colors"
+                />
+              </div>
             </div>
             
             {validationError && (
@@ -227,16 +293,29 @@ export default function RegisterPage() {
                 <label htmlFor="phone_number" className="text-[10px] text-[#4a2c2a] font-bold uppercase tracking-tight opacity-60">
                   Mobile Number
                 </label>
-                <input
-                  id="phone_number"
-                  name="phone_number"
-                  type="tel"
-                  required
-                  placeholder="9876543210"
-                  value={formData.phone_number}
-                  onChange={handleChange}
-                  className="w-full mt-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm transition-colors"
-                />
+                <div className="flex gap-2 mt-1">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm bg-white cursor-pointer"
+                  >
+                    {COUNTRY_CODES.map((item) => (
+                      <option key={item.code} value={item.code}>
+                        {item.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    id="phone_number"
+                    name="phone_number"
+                    type="tel"
+                    required
+                    placeholder="7123456789"
+                    value={formData.phone_number}
+                    onChange={handleChange}
+                    className="flex-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm transition-colors"
+                  />
+                </div>
               </div>
 
               {validationError && (

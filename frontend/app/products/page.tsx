@@ -3,7 +3,7 @@ import TileGallery from "@/components/products/TileGallery";
 import ApplicationPossibilities from "@/components/home/ApplicationPossibilities";
 import { getActiveTilePaths, getAllPreviewPaths } from "@/app/actions";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 15;
 
 export default async function ProductsPage() {
   const allFiles = await getActiveTilePaths();

@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 // import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { CartProvider } from "@/context/CartContext";
 import { ReduxProvider } from "@/components/Provider";
 import LayoutWrapper from "@/components/LayoutWrapper";
-import { Toaster } from "react-hot-toast";
-import AuthProvider from "@/components/AuthProvider";
-import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // const geistSans = Geist({
 //   variable: "--font-geist-sans",
@@ -15,7 +11,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 
 // const geistMono = Geist_Mono({
 //   variable: "--font-geist-mono",
-//   subsets: ["latin"],
+//   subsets: ["mono"],
 // });
 
 export const metadata: Metadata = {
@@ -24,6 +20,9 @@ export const metadata: Metadata = {
     template: "%s | Tile Bazaar"
   },
   description: "UK's leading supplier of premium architectural surfaces. We provide high-quality tiles for large-scale construction projects and luxury residential designs.",
+  formatDetection: {
+    telephone: false,
+  },
   verification: {
     google: "yiyRSvBVXQuxkQlzr08FUPiv2oU5cT-9sh77mgMY3kw",
   },
@@ -63,21 +62,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body cz-shortcut-listen="true">
-        <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
-          <Toaster position="bottom-right" reverseOrder={false} />
-          <ReduxProvider>
-            <CartProvider>
-              <AuthProvider>
-              {/* The Wrapper handles the logic of what to show */}
-              <LayoutWrapper>
-                {children}
-              </LayoutWrapper>
-              </AuthProvider>
-            </CartProvider>
-          </ReduxProvider>
-        </GoogleOAuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <ReduxProvider>
+          {/* The Wrapper handles the logic of what to show */}
+          <LayoutWrapper>
+            {children}
+          </LayoutWrapper>
+        </ReduxProvider>
       </body>
     </html>
   );

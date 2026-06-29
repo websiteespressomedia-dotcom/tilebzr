@@ -45,7 +45,7 @@ interface RegisterData {
 
 const initialState: AuthState = {
   user: null,
-  token: typeof window !== "undefined" ? sessionStorage.getItem("token") || localStorage.getItem("token") : null,
+  token: null,
   loading: false,
   error: null,
   isInitialized: false,
@@ -194,6 +194,9 @@ const authSlice = createSlice({
       state.error = null;
       state.isInitialized = true;
     },
+    setInitialized: (state) => {
+      state.isInitialized = true;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -293,5 +296,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError, loginSuccess } = authSlice.actions;
+export const { logout, clearError, loginSuccess, setInitialized } = authSlice.actions;
 export default authSlice.reducer;

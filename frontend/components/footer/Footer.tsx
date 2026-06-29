@@ -113,6 +113,7 @@ import {
   FaYoutube,
 } from "react-icons/fa";
 import Image from "next/image";
+import logoImg from "@/public/images/logo-2.png";
 
 export default function Footer() {
   return (
@@ -212,11 +213,9 @@ export default function Footer() {
             <div className="mt-auto">
               <div className="flex justify-start md:justify-end  text-6xl font-serif tracking-tighter mb-4 text-[#4a2c2a]">
                 <Image
-                  src="/images/logo-2.png"
+                  src={logoImg}
                   alt="Logo"
-                  width={100}
-                  height={100}
-                  className="w-auto h-25 md:h-30"
+                  className="w-auto h-[80px] md:h-[100px] object-contain"
                 />
               </div>
               <p className="text-[11px] leading-relaxed font-bold uppercase tracking-wider max-w-[320px] lg:ml-auto">
@@ -238,7 +237,7 @@ export default function Footer() {
             </span>
             <div className="flex gap-6 text-lg">
               <Link
-                href="https://www.facebook.com/share/1PFi9tive6/?mibextid=wwXIfr"
+                href="https://www.facebook.com/profile.php?id=61583916478359"
                 target="_blank"
               >
                 <FaFacebookF className="cursor-pointer hover:text-[#4a2c2a] transition-colors" />

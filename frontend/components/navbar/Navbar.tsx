@@ -66,6 +66,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import logoImg from "@/public/images/logo-2.png";
 import { FiShoppingCart, FiUser, FiHeart } from "react-icons/fi";
 import CartDrawer from "../common/CartDrawer";
 import { useCart } from "@/context/CartContext";
@@ -153,16 +154,16 @@ useEffect(() => {
           </div>
         </div>
 
-        <div className="mx-auto grid h-[82px] max-w-[1380px] grid-cols-[1fr_auto_1fr] items-center px-6 md:px-10">
+        <div className="mx-auto flex md:grid h-[82px] max-w-[1380px] items-center justify-between md:grid-cols-[1fr_auto_1fr] px-6 md:px-10">
           {/* Logo Section */}
           <div className="shrink-0 relative z-50">
             <Link href="/" className="flex items-center">
               <Image
-                src="/images/logo-2.png"
+                src={logoImg}
                 alt="Logo"
-                width={100}
-                height={100}
-                className="h-16 w-auto md:h-[74px]"
+                style={{ objectFit: "contain" }}
+                className="h-12 w-auto md:h-[74px]"
+                priority
               />
             </Link>
           </div>
@@ -285,6 +286,14 @@ useEffect(() => {
                 </svg>
               )}
             </button>
+          </div>
+        </div>
+
+        <div className="w-full bg-[#e38a16] py-2 text-white">
+          <div className="mx-auto flex max-w-[1380px] justify-center px-6 md:px-10">
+            <p className="text-[11px] font-semibold tracking-wide md:text-[12px] lg:text-[13px] text-center">
+              Free expert advice available, give us a call now on 8866468856
+            </p>
           </div>
         </div>
 

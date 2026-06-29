@@ -12,7 +12,8 @@ export default function AboutPage() {
           alt="TileBazaar Showroom"
           fill
           sizes="100vw"
-          className="object-cover object-center"
+          style={{ objectFit: "cover", objectPosition: "center" }}
+          className="transition-transform duration-1000"
           priority
         />
       </section>

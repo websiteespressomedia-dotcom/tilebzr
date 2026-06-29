@@ -142,7 +142,7 @@ function getFilesRecursively(dir: string, baseDir: string): string[] {
   return results;
 }
 
-const getFinishFromFilename = (fileName: string): string => {
+const getFinishFromFilename = (fileName: string, localPath?: string): string => {
   const name = fileName.toUpperCase();
   if (name.includes("--GLOSSY") || name.includes("--GLOSS")) return "GLOSSY";
   if (name.includes("--MATT") && !name.includes("--MATTING")) return "MATT";
@@ -152,6 +152,7 @@ const getFinishFromFilename = (fileName: string): string => {
   if (name.includes("--PUNCHGL")) return "POSTER";
   if (name.includes("--LOVIN")) return "LOVELIN";
   if (name.includes("--TPH")) return "TYPHOON";
+  if (localPath && localPath.toLowerCase().includes("1200x1200")) return "GLOSSY";
   return "OTHER";
 };
 
@@ -238,7 +239,7 @@ const getCategoryFromPath = (localPath: string): string => {
   return "Floor Tiles";
 };
 
-const getPriceFromFilename = (fileName: string): { price: number; discount_price: number | null } => {
+const getPriceFromFilename = (fileName: string, size?: string): { price: number; discount_price: number | null } => {
   const upper = fileName.toUpperCase();
   if (upper.includes("TRIM")) return { price: 8, discount_price: null };
   if (upper.includes("SPACER")) return { price: 6, discount_price: null };
@@ -248,11 +249,22 @@ const getPriceFromFilename = (fileName: string): { price: number; discount_price
   if (upper.includes("AURL GRIGIO") || upper.includes("PAVE") || upper.includes("SALT CONCRETO") || upper.includes("SALTED CONCRETO") || upper.includes("OUTDOOR")) {
     return { price: 18, discount_price: null };
   }
+  if (size && (size.toUpperCase().includes("300X600") || size.toUpperCase().includes("600X300"))) {
+    return { price: 15, discount_price: 10 };
+  }
   return { price: 15, discount_price: null };
 };
 
+let lastSyncTime = 0;
+const SYNC_THROTTLE_MS = 60 * 60 * 1000; // 1 hour
+
 const syncLocalDirectoryDirectly = async () => {
   try {
+    const now = Date.now();
+    if (now - lastSyncTime < SYNC_THROTTLE_MS) {
+      return;
+    }
+    lastSyncTime = now;
     let tilesDir = path.resolve(process.cwd(), '../frontend/public/tiles');
     if (!fs.existsSync(tilesDir)) {
       tilesDir = path.resolve(process.cwd(), 'frontend/public/tiles');
@@ -274,7 +286,7 @@ const syncLocalDirectoryDirectly = async () => {
     const productsToSync = [];
     for (const relativePath of localFiles) {
       const filename = relativePath.split('/').pop() || relativePath;
-      const finish = getFinishFromFilename(filename);
+      const finish = getFinishFromFilename(filename, relativePath);
       const isAccessory = /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(filename.toUpperCase());
 
       if (!isAccessory && finish === "OTHER") continue;
@@ -318,7 +330,7 @@ const syncLocalDirectoryDirectly = async () => {
 
       if (alreadyExists) continue;
 
-      const { price, discount_price } = getPriceFromFilename(filename);
+      const { price, discount_price } = getPriceFromFilename(filename, size);
       const category = getCategoryFromPath(relativePath);
 
       productsToSync.push({
@@ -370,7 +382,7 @@ export const syncLocalProducts = async (req: Request, res: Response) => {
     const results = [];
     for (const relativePath of paths) {
       const filename = relativePath.split('/').pop() || relativePath;
-      const finish = getFinishFromFilename(filename);
+      const finish = getFinishFromFilename(filename, relativePath);
       const isAccessory = /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(filename.toUpperCase());
 
       if (!isAccessory && finish === "OTHER") {
@@ -390,7 +402,7 @@ export const syncLocalProducts = async (req: Request, res: Response) => {
       const slugBase = `${displayName} ${finish !== 'OTHER' ? finish : ''} ${size}`;
       const finalSlug = slugify(slugBase);
 
-      const { price, discount_price } = getPriceFromFilename(filename);
+      const { price, discount_price } = getPriceFromFilename(filename, size);
       const category = getCategoryFromPath(relativePath);
 
       const productData = {
