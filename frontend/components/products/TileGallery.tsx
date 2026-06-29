@@ -145,6 +145,8 @@ const getProductDetails = (fileName: string, dimension?: string) => {
   if (upper.includes("MATTING")) return { price: 6, unit: "+vat/sqm", isAccessory: true };
   // New Arrivals & Outdoor tiles are priced at £18
   if (upper.includes("AURL GRIGIO") || upper.includes("PAVE") || upper.includes("SALT CONCRETO") || upper.includes("SALTED CONCRETO") || upper.includes("OUTDOOR")) return { price: 18, unit: "m²", isAccessory: false };
+  // EXP and TC tiles are priced at £10
+  if (upper.includes("EXP") || upper.includes("TC")) return { price: 10, unit: "m²", isAccessory: false };
   // 300x600 tiles have a default price of £10
   if (upper.includes("300X600") || dimUpper.includes("300X600") || dimUpper.includes("300X600 MM") || upper.includes("300X600MM")) {
     return { price: 10, unit: "m²", isAccessory: false };

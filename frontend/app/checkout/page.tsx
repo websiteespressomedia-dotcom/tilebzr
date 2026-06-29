@@ -13,33 +13,69 @@ import toast from "react-hot-toast";
 
 // Stripe disabled
 
+const resolveTileImagePath = (imageName: string, size?: string, category?: string, version?: string): string => {
+  if (!imageName) return "";
+  if (imageName.startsWith("http")) return imageName;
+  
+  let cleanImageName = imageName.split("?")[0];
+  if (cleanImageName === "the-popular-front--spacer.png") {
+    cleanImageName = "the-popular-front--wedge.png";
+  }
+  
+  let resolved = "";
+  if (cleanImageName.includes("/")) {
+    if (cleanImageName.startsWith("comingsoon/")) {
+      resolved = `/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${cleanImageName}`;
+    }
+  } else {
+    const sizeLower = (size || "").toLowerCase().trim();
+    const catLower = (category || "").toLowerCase().trim();
+    
+    let folder = "1200x1200"; // default fallback
+    if (catLower === "accessories" || catLower === "accesories" || sizeLower === "accessories") {
+      let subfolder = "";
+      const imgUpper = cleanImageName.toUpperCase();
+      if (imgUpper.includes("TRIM")) {
+        subfolder = "trim/";
+      } else if (imgUpper.includes("SPACER") || imgUpper.includes("WEDGE") || imgUpper.includes("LEVEL")) {
+        subfolder = "spacer/";
+      } else if (imgUpper.includes("MATTING") || imgUpper.includes("MAT")) {
+        subfolder = "matting/";
+      } else if (imgUpper.includes("ADHESIVE") || imgUpper.includes("GLUE")) {
+        subfolder = "adhesive/";
+      }
+      folder = `accessories/${subfolder}`;
+    } else if (sizeLower.includes("1200x1200") || sizeLower.includes("1200 x 1200")) {
+      folder = "1200x1200";
+    } else if (sizeLower.includes("600x1200") || sizeLower.includes("600 x 1200")) {
+      folder = "600x1200";
+    } else if (sizeLower.includes("600x600") || sizeLower.includes("600 x 600")) {
+      folder = "600x600";
+    } else if (sizeLower.includes("300x600") || sizeLower.includes("300 x 600")) {
+      folder = "300x600";
+    }
+    
+    if (catLower === "coming soon" || catLower === "comingsoon" || sizeLower === "coming soon" || sizeLower === "comingsoon") {
+      resolved = `/comingsoon/${folder}/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${folder}/${cleanImageName}`;
+    }
+  }
+
+  const parts = resolved.split('/');
+  const encodedPath = parts.map((part, idx) => {
+    if (idx === 0 && part === "") return "";
+    return encodeURIComponent(part);
+  }).join('/');
+  
+  return encodedPath + (version ? `?v=${version}` : "");
+};
+
 const getProductImagePath = (product: any) => {
-  if (!product || !product.image) return "/placeholder-tile.jpg";
-  if (product.image.startsWith("http")) return product.image;
-  if (product.image.startsWith("/")) return product.image;
-  if (product.image.toLowerCase().includes("comingsoon/")) {
-    return product.image.startsWith("/") ? product.image : `/${product.image}`;
-  }
-  
-  const category = (product.category || "").toLowerCase();
-  const size = (product.size || "").toLowerCase();
-  const isComingSoon = product.is_coming_soon || category === "coming soon";
-  
-  if (isComingSoon && size === "600x1200") {
-    return `/comingsoon/600x1200/${product.image}`;
-  }
-  
-  const imgName = product.image.toUpperCase();
-  
-  if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
-    if (imgName.includes("TRIM")) return `/tiles/accessories/trim/${product.image}`;
-    if (imgName.includes("SPACER") || imgName.includes("WEDGE")) return `/tiles/accessories/spacer/${product.image}`;
-    if (imgName.includes("MATTING") || imgName.includes("LEVEL")) return `/tiles/accessories/matting/${product.image}`;
-    if (imgName.includes("ADHESIVE") || imgName.includes("GLUE")) return `/tiles/accessories/adhesive/${product.image}`;
-    return `/tiles/accessories/${product.image}`;
-  }
-  
-  return `/tiles/${size}/${product.image}`;
+  if (!product) return "/placeholder-tile.jpg";
+  return resolveTileImagePath(product.image || "", product.size, product.category);
 };
 
 const getFrontendPrice = (product: any): number => {
@@ -312,7 +348,7 @@ export default function CheckoutPage() {
           <CheckCircle2 className="w-20 h-20 text-[#4a2c2a] mx-auto mb-8" strokeWidth={1.5} />
           <h1 className="text-4xl font-serif text-[#4a2c2a] mb-4">Order Placed Successfully</h1>
           <p className="text-gray-600 mb-8 leading-relaxed text-sm">
-            Your mail id is saved , the payment link will be share to the registered mail id within 3 days
+            Your mail id is saved , the payment link will be share to the registered mail id within 24 hours
           </p>
           <Link
             href="/products"
@@ -435,7 +471,7 @@ export default function CheckoutPage() {
                 <h2 className="text-[16px] font-bold text-[#4a2c2a] mb-6">Complete Order</h2>
                 <div className="bg-[#faf9f8] p-6 border border-gray-100 flex flex-col gap-4">
                   <p className="text-sm text-gray-500 leading-relaxed">
-                    By placing this order, you agree to register your email. A payment link will be sent to your registered email address within 3 days.
+                    By placing this order, you agree to register your email. A payment link will be sent to your registered email address within 24 hours.
                   </p>
                   <button
                     onClick={handlePlaceOrderClick}

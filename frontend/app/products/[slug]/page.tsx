@@ -235,6 +235,15 @@ const getProductDetails = (fileName: string, dimension?: string) => {
       isTrim: false,
     };
   }
+  if (upper.includes("EXP") || upper.includes("TC")) {
+    return {
+      price: 10,
+      unit: "m²",
+      isAccessory: false,
+      isAdhesive: false,
+      isTrim: false,
+    };
+  }
   if (
     upper.includes("300X600") ||
     dimUpper.includes("300X600") ||
