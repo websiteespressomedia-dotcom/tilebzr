@@ -1310,7 +1310,7 @@ export default function ProductDetailPage({
                           className={`relative w-36 h-24 md:w-40 md:h-28 bg-transparent border-[3px] ${isActive ? "border-black" : "border-transparent"} hover:border-black/40 transition-colors overflow-hidden`}
                         >
                           <img
-                            src={resolveTileImagePath(path.split("?")[0], product.dimension, product.category)}
+                            src={resolveTileImagePath(path.split("?")[0], dimension, category)}
                             alt={vName}
                             
                             className="w-full h-full object-cover  p-1"
@@ -1653,7 +1653,7 @@ export default function ProductDetailPage({
                           className={`relative w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${isActive ? "border-[#4a2c2a]" : "border-transparent"} hover:border-[#4a2c2a]/50 transition-colors rounded-sm overflow-hidden`}
                         >
                           <img
-                            src={resolveTileImagePath(path.split("?")[0], product.dimension, product.category)}
+                            src={resolveTileImagePath(path.split("?")[0], dimension, category)}
                             alt={vName}
                             
                             className="w-full h-full object-cover p-2 "
