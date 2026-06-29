@@ -12,6 +12,9 @@ interface TileGalleryProps {
   initialPreviews?: string[];
 }
 
+const FALLBACK_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='240' viewBox='0 0 300 240'><rect width='300' height='240' fill='%23f9fafb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='%239ca3af'>IMAGE COMING SOON</text></svg>";
+
+
 const isSubProduct = (name: string): boolean => {
   if (!name) return false;
   const upper = name.toUpperCase().trim();
@@ -44,7 +47,10 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
   if (!imageName) return "";
   if (imageName.startsWith("http")) return imageName;
   
-  const cleanImageName = imageName.split("?")[0];
+  let cleanImageName = imageName.split("?")[0];
+  if (cleanImageName === "the-popular-front--spacer.png") {
+    cleanImageName = "the-popular-front--wedge.png";
+  }
   
   let resolved = "";
   if (cleanImageName.includes("/")) {
@@ -58,8 +64,19 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
     const catLower = (category || "").toLowerCase().trim();
     
     let folder = "1200x1200"; // default fallback
-    if (catLower === "accessories" || catLower === "accesories") {
-      folder = "accessories";
+    if (catLower === "accessories" || catLower === "accesories" || sizeLower === "accessories") {
+      let subfolder = "";
+      const imgUpper = cleanImageName.toUpperCase();
+      if (imgUpper.includes("TRIM")) {
+        subfolder = "trim/";
+      } else if (imgUpper.includes("SPACER") || imgUpper.includes("WEDGE") || imgUpper.includes("LEVEL")) {
+        subfolder = "spacer/";
+      } else if (imgUpper.includes("MATTING") || imgUpper.includes("MAT")) {
+        subfolder = "matting/";
+      } else if (imgUpper.includes("ADHESIVE") || imgUpper.includes("GLUE")) {
+        subfolder = "adhesive/";
+      }
+      folder = `accessories/${subfolder}`;
     } else if (sizeLower.includes("1200x1200") || sizeLower.includes("1200 x 1200")) {
       folder = "1200x1200";
     } else if (sizeLower.includes("600x1200") || sizeLower.includes("600 x 1200")) {
@@ -68,10 +85,13 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
       folder = "600x600";
     } else if (sizeLower.includes("300x600") || sizeLower.includes("300 x 600")) {
       folder = "300x600";
-    } else if (sizeLower === "coming soon" || catLower === "coming soon") {
-      return `/comingsoon/${imageName}`;
     }
-    resolved = `/tiles/${folder}/${imageName}`;
+    
+    if (catLower === "coming soon" || catLower === "comingsoon" || sizeLower === "coming soon" || sizeLower === "comingsoon") {
+      resolved = `/comingsoon/${folder}/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${folder}/${cleanImageName}`;
+    }
   }
 
   const parts = resolved.split('/');
@@ -327,10 +347,14 @@ const getPreviewUrl = (
   return null;
 };
 
+const DEFAULT_IMAGES: string[] = [];
+const DEFAULT_PRODUCTS: any[] = [];
+const DEFAULT_PREVIEWS: string[] = [];
+
 export default function TileGallery({
-  initialImages = [],
-  initialProducts = [],
-  initialPreviews = []
+  initialImages = DEFAULT_IMAGES,
+  initialProducts = DEFAULT_PRODUCTS,
+  initialPreviews = DEFAULT_PREVIEWS
 }: TileGalleryProps) {
   const [previewPaths, setPreviewPaths] = useState<string[]>(initialPreviews);
   const [imgVersion, setImgVersion] = useState("");
@@ -460,6 +484,8 @@ export default function TileGallery({
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   const deduplicatedProducts = useMemo(() => {
+    const seenNames = new Set<string>();
+
     return products.filter((p) => {
       const nameUpper = p.name ? p.name.toUpperCase() : "";
       
@@ -471,6 +497,27 @@ export default function TileGallery({
       // Filter out grid templates
       if (nameUpper.startsWith("GRID_AURL") || nameUpper.startsWith("GRID_PAVE")) {
         return false;
+      }
+
+      // Filter out duplicate accessories starting with ATRIM
+      if (nameUpper.startsWith("ATRIM")) {
+        return false;
+      }
+
+      // Filter out broken tile-trim.png
+      if (p.image === "tile-trim.png") {
+        return false;
+      }
+
+      // Filter out general duplicates by name (for accessories)
+      const catUpper = p.category ? p.category.toUpperCase() : "";
+      const isAccessory = catUpper === "ACCESSORIES" || catUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper);
+      if (isAccessory) {
+        const normName = p.name.toLowerCase().trim();
+        if (seenNames.has(normName)) {
+          return false;
+        }
+        seenNames.add(normName);
       }
 
       return true;
@@ -500,8 +547,18 @@ export default function TileGallery({
     });
 
     return {
-      uniqueSizes: Array.from(sizes).sort(),
-      uniqueFinishes: Array.from(finishes).sort(),
+      uniqueSizes: Array.from(sizes)
+        .filter((s) => {
+          const norm = s.trim().toLowerCase();
+          return norm !== "10mm x 2.5m" && norm !== "20kg" && norm !== "20 kg" && norm !== "accessories";
+        })
+        .sort(),
+      uniqueFinishes: Array.from(finishes)
+        .filter((f) => {
+          const norm = f.trim().toUpperCase();
+          return norm !== "GREY" && norm !== "WHITE";
+        })
+        .sort(),
       uniqueComingSoonSizes: Array.from(csSizes).sort(),
     };
   }, [deduplicatedProducts]);
@@ -512,26 +569,28 @@ export default function TileGallery({
       const finishUpper = p.finish ? p.finish.toUpperCase() : "";
       const sizeLower = p.size ? p.size.toLowerCase() : "";
       const nameUpper = p.name ? p.name.toUpperCase() : "";
+      const imageUpper = p.image ? p.image.toUpperCase() : "";
       const isComingSoon = categoryUpper === "COMING SOON" || p.is_coming_soon;
 
       if (sizeFilter === "accessories") {
-        let matchesAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper);
+        let matchesAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper) || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(imageUpper);
         if (finishFilter) {
-          if (finishFilter === "trim")
-            matchesAccessory = nameUpper.includes("TRIM");
-          else if (finishFilter === "spacer")
-            matchesAccessory = nameUpper.includes("SPACER");
-          else if (finishFilter === "wedge")
-            matchesAccessory = nameUpper.includes("WEDGE");
-          else if (finishFilter === "adhesive")
-            matchesAccessory = nameUpper.includes("ADHESIVE") || nameUpper.includes("GLUE");
-          else if (finishFilter === "matting")
-            matchesAccessory = nameUpper.includes("MATTING");
+          const target = finishFilter.toUpperCase();
+          if (target === "TRIM")
+            matchesAccessory = nameUpper.includes("TRIM") || imageUpper.includes("TRIM");
+          else if (target === "SPACER")
+            matchesAccessory = nameUpper.includes("SPACER") || imageUpper.includes("SPACER");
+          else if (target === "WEDGE")
+            matchesAccessory = nameUpper.includes("WEDGE") || imageUpper.includes("WEDGE");
+          else if (target === "ADHESIVE")
+            matchesAccessory = nameUpper.includes("ADHESIVE") || nameUpper.includes("GLUE") || imageUpper.includes("ADHESIVE") || imageUpper.includes("GLUE");
+          else if (target === "MATTING")
+            matchesAccessory = nameUpper.includes("MATTING") || imageUpper.includes("MATTING");
           else matchesAccessory = false;
         }
         return matchesAccessory;
       } else {
-        const isAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper);
+        const isAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper) || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(imageUpper);
         if (isAccessory) return false;
 
         // Handle Coming Soon products isolation
@@ -909,6 +968,9 @@ export default function TileGallery({
                   <img
                    src={resolveTileImagePath(imageName, dimension, category, imgVersion)}
                    alt={fileNameOnly}
+                   onError={(e) => {
+                     e.currentTarget.src = FALLBACK_IMAGE;
+                   }}
                    className={`absolute inset-0 w-full h-full p-6 object-contain mix-blend-multiply transition-opacity duration-300 ${previewUrl ? 'group-hover/image:opacity-0' : 'group-hover/image:scale-105'}`}
                  />
 
@@ -917,6 +979,9 @@ export default function TileGallery({
                   <img
                     src={previewUrl}
                     alt={`${displayName} Preview`}
+                    onError={(e) => {
+                       e.currentTarget.style.display = 'none';
+                    }}
                     className="object-contain absolute inset-0 w-full h-full p-6 opacity-0 group-hover/image:opacity-100 transition-opacity duration-500 z-10"
                   />
                 )}

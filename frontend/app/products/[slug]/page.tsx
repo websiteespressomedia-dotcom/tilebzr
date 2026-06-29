@@ -12,6 +12,9 @@ import TilePackCalculator from "@/components/products/TilePackCalculator";
 import previewMap from "@/app/previewMap.json";
 import api from "@/lib/axios";
 
+const FALLBACK_IMAGE = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='240' viewBox='0 0 300 240'><rect width='300' height='240' fill='%23f9fafb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='%239ca3af'>IMAGE COMING SOON</text></svg>";
+
+
 /* ─────────────────────────────────────────────
    Pure helper functions (same logic as TileGallery)
 ───────────────────────────────────────────── */
@@ -19,7 +22,10 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
   if (!imageName) return "";
   if (imageName.startsWith("http")) return imageName;
   
-  const cleanImageName = imageName.split("?")[0];
+  let cleanImageName = imageName.split("?")[0];
+  if (cleanImageName === "the-popular-front--spacer.png") {
+    cleanImageName = "the-popular-front--wedge.png";
+  }
   
   let resolved = "";
   if (cleanImageName.includes("/")) {
@@ -33,8 +39,19 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
     const catLower = (category || "").toLowerCase().trim();
     
     let folder = "1200x1200"; // default fallback
-    if (catLower === "accessories" || catLower === "accesories") {
-      folder = "accessories";
+    if (catLower === "accessories" || catLower === "accesories" || sizeLower === "accessories") {
+      let subfolder = "";
+      const imgUpper = cleanImageName.toUpperCase();
+      if (imgUpper.includes("TRIM")) {
+        subfolder = "trim/";
+      } else if (imgUpper.includes("SPACER") || imgUpper.includes("WEDGE") || imgUpper.includes("LEVEL")) {
+        subfolder = "spacer/";
+      } else if (imgUpper.includes("MATTING") || imgUpper.includes("MAT")) {
+        subfolder = "matting/";
+      } else if (imgUpper.includes("ADHESIVE") || imgUpper.includes("GLUE")) {
+        subfolder = "adhesive/";
+      }
+      folder = `accessories/${subfolder}`;
     } else if (sizeLower.includes("1200x1200") || sizeLower.includes("1200 x 1200")) {
       folder = "1200x1200";
     } else if (sizeLower.includes("600x1200") || sizeLower.includes("600 x 1200")) {
@@ -43,10 +60,13 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
       folder = "600x600";
     } else if (sizeLower.includes("300x600") || sizeLower.includes("300 x 600")) {
       folder = "300x600";
-    } else if (sizeLower === "coming soon" || catLower === "coming soon") {
-      return `/comingsoon/${imageName}`;
     }
-    resolved = `/tiles/${folder}/${imageName}`;
+    
+    if (catLower === "coming soon" || catLower === "comingsoon" || sizeLower === "coming soon" || sizeLower === "comingsoon") {
+      resolved = `/comingsoon/${folder}/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${folder}/${cleanImageName}`;
+    }
   }
 
   const parts = resolved.split('/');
@@ -1209,7 +1229,7 @@ export default function ProductDetailPage({
                 </div>
               ) : !imgError ? (
                 <img
-                  src={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : displayImagePath.startsWith("comingsoon/") ? `/${displayImagePath.split("?")[0].split('/').map(s => encodeURIComponent(s)).join('/')}` : `/tiles/${displayImagePath.split("?")[0].split('/').map(s => encodeURIComponent(s)).join('/')}`}
+                  src={resolveTileImagePath(displayImagePath, dimension, category)}
                   alt={displayName}
                   className="w-full h-full object-contain "
                   onError={() => setImgError(true)}
@@ -1236,7 +1256,7 @@ export default function ProductDetailPage({
               <div className="mt-4 flex gap-3">
                 <div className="w-20 h-20 bg-transparent border-2 border-[#4a2c2a] rounded-sm overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
                   <img
-                    src={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : displayImagePath.startsWith("comingsoon/") ? `/${displayImagePath.split("?")[0]}` : `/tiles/${displayImagePath.split("?")[0]}`}
+                    src={resolveTileImagePath(displayImagePath, dimension, category)}
                     alt="thumb"
                     className="w-full h-full object-contain "
                   />
@@ -1312,7 +1332,9 @@ export default function ProductDetailPage({
                           <img
                             src={resolveTileImagePath(path.split("?")[0], dimension, category)}
                             alt={vName}
-                            
+                            onError={(e) => {
+                              e.currentTarget.src = FALLBACK_IMAGE;
+                            }}
                             className="w-full h-full object-cover  p-1"
                           />
                         </div>
@@ -1353,12 +1375,7 @@ export default function ProductDetailPage({
                   {groupVariants.map((variant) => {
                     const isSelected = productData && variant.id === productData.id;
                     const vImage = variant.image || "";
-                    const vImageWithoutQuery = vImage.split("?")[0];
-                    const vSrc = vImage.startsWith("http")
-                      ? vImageWithoutQuery
-                      : vImageWithoutQuery.startsWith("comingsoon/")
-                        ? `/${vImageWithoutQuery}`
-                        : `/tiles/${vImageWithoutQuery}`;
+                    const vSrc = resolveTileImagePath(vImage, variant.size, variant.category);
 
                     return (
                       <button
@@ -1655,7 +1672,9 @@ export default function ProductDetailPage({
                           <img
                             src={resolveTileImagePath(path.split("?")[0], dimension, category)}
                             alt={vName}
-                            
+                            onError={(e) => {
+                              e.currentTarget.src = FALLBACK_IMAGE;
+                            }}
                             className="w-full h-full object-cover p-2 "
                           />
                         </div>
@@ -2114,7 +2133,7 @@ export default function ProductDetailPage({
                     productName={displayName}
                     pricePerM2={details.price}
                     size={dimension}
-                    image={displayImagePath.startsWith("http") ? displayImagePath.split("?")[0] : displayImagePath.startsWith("comingsoon/") ? `/${displayImagePath.split("?")[0]}` : `/tiles/${displayImagePath.split("?")[0]}`}
+                    image={resolveTileImagePath(displayImagePath, dimension, category)}
                     token={token}
                     router={router}
                   />
