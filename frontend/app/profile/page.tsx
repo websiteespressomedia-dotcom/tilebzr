@@ -38,7 +38,10 @@ const getProductImagePath = (image: string | undefined | null, category?: string
     if (upper.includes("TRIM")) {
       return `/tiles/accessories/trim/${cleanImage}`;
     }
-    if (upper.includes("SPACER") || upper.includes("WEDGE")) {
+    if (upper.includes("WEDGE")) {
+      return `/tiles/accessories/wedge/${cleanImage}`;
+    }
+    if (upper.includes("SPACER")) {
       return `/tiles/accessories/spacer/${cleanImage}`;
     }
     if (upper.includes("MATTING") || upper.includes("LEVEL")) {

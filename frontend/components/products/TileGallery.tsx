@@ -66,7 +66,9 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
       const imgUpper = cleanImageName.toUpperCase();
       if (imgUpper.includes("TRIM")) {
         subfolder = "trim/";
-      } else if (imgUpper.includes("SPACER") || imgUpper.includes("WEDGE") || imgUpper.includes("LEVEL")) {
+      } else if (imgUpper.includes("WEDGE")) {
+        subfolder = "wedge/";
+      } else if (imgUpper.includes("SPACER") || imgUpper.includes("LEVEL")) {
         subfolder = "spacer/";
       } else if (imgUpper.includes("MATTING") || imgUpper.includes("MAT")) {
         subfolder = "matting/";

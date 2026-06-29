@@ -151,7 +151,10 @@ const getProductImagePath = (product: any) => {
     if (imgName.includes("TRIM")) {
       return `/tiles/accessories/trim/${product.image}`;
     }
-    if (imgName.includes("SPACER") || imgName.includes("WEDGE")) {
+    if (imgName.includes("WEDGE")) {
+      return `/tiles/accessories/wedge/${product.image}`;
+    }
+    if (imgName.includes("SPACER")) {
       return `/tiles/accessories/spacer/${product.image}`;
     }
     if (imgName.includes("MATTING") || imgName.includes("LEVEL")) {
