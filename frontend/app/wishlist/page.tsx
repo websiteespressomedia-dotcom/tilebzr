@@ -283,7 +283,8 @@ export default function WishlistPage() {
                           ? `/products/${new URLSearchParams(product.slug.split("?")[1]).get("slug")}`
                           : `/products/${encodeURIComponent(product.slug)}`
                       }
-                      className={`relative w-full aspect-[5/4] ${isCarrara ? 'bg-[#f4eedb]' : 'bg-[#fbfbfb]'} block mb-5 overflow-hidden group/image cursor-pointer border border-gray-50 hover:border-gray-100 transition-colors`}
+                      className={`relative w-full aspect-[5/4] block mb-5 overflow-hidden group/image cursor-pointer border border-gray-50 hover:border-gray-100 transition-colors`}
+                      style={{ backgroundColor: isCarrara ? '#f4eedb' : '#fbfbfb' }}
                     >
                       <Image
                         src={imagePath}
