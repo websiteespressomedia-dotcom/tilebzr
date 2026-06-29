@@ -15,6 +15,49 @@ import api from "@/lib/axios";
 /* ─────────────────────────────────────────────
    Pure helper functions (same logic as TileGallery)
 ───────────────────────────────────────────── */
+const resolveTileImagePath = (imageName: string, size?: string, category?: string, version?: string): string => {
+  if (!imageName) return "";
+  if (imageName.startsWith("http")) return imageName;
+  
+  const cleanImageName = imageName.split("?")[0];
+  
+  let resolved = "";
+  if (cleanImageName.includes("/")) {
+    if (cleanImageName.startsWith("comingsoon/")) {
+      resolved = `/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${cleanImageName}`;
+    }
+  } else {
+    const sizeLower = (size || "").toLowerCase().trim();
+    const catLower = (category || "").toLowerCase().trim();
+    
+    let folder = "1200x1200"; // default fallback
+    if (catLower === "accessories" || catLower === "accesories") {
+      folder = "accessories";
+    } else if (sizeLower.includes("1200x1200") || sizeLower.includes("1200 x 1200")) {
+      folder = "1200x1200";
+    } else if (sizeLower.includes("600x1200") || sizeLower.includes("600 x 1200")) {
+      folder = "600x1200";
+    } else if (sizeLower.includes("600x600") || sizeLower.includes("600 x 600")) {
+      folder = "600x600";
+    } else if (sizeLower.includes("300x600") || sizeLower.includes("300 x 600")) {
+      folder = "300x600";
+    } else if (sizeLower === "coming soon" || catLower === "coming soon") {
+      return `/comingsoon/${imageName}`;
+    }
+    resolved = `/tiles/${folder}/${imageName}`;
+  }
+
+  const parts = resolved.split('/');
+  const encodedPath = parts.map((part, idx) => {
+    if (idx === 0 && part === "") return "";
+    return encodeURIComponent(part);
+  }).join('/');
+  
+  return encodedPath + (version ? `?v=${version}` : "");
+};
+
 const getFinish = (fileName: string) => {
   const name = fileName.toUpperCase();
   if (name.includes("--GLOSS")) return "GLOSSY";
@@ -589,17 +632,49 @@ export default function ProductDetailPage({
 
   const [allTiles, setAllTiles] = useState<string[]>([]);
   const [previewPaths, setPreviewPaths] = useState<string[]>([]);
+  const [dbProductsList, setDbProductsList] = useState<any[]>([]);
 
   useEffect(() => {
     import("@/app/actions").then((module) => {
       module.getActiveTilePaths().then((paths) => setAllTiles(paths));
       module.getAllPreviewPaths().then((paths) => setPreviewPaths(paths));
     });
+
+    api.get("/api/products")
+      .then((res) => {
+        setDbProductsList(res.data || []);
+      })
+      .catch((err) => {
+        console.warn("Could not fetch all products list:", err.message || err);
+      });
   }, []);
 
   const [productData, setProductData] = useState<any>(null);
   const [loadingProduct, setLoadingProduct] = useState(!isLegacy);
   const [imagePath, setImagePath] = useState(isLegacy ? decodedSlug : "");
+
+  const getGroupBaseName = (name: string): string | null => {
+    if (!name) return null;
+    const upper = name.toUpperCase().trim();
+    if (upper.startsWith("SERENA")) return "SERENA";
+    if (upper.startsWith("MARBLE CARRARA")) return "MARBLE CARRARA";
+    if (upper.startsWith("CREMA MARFIL NEO") || upper.startsWith("CREMA MARFIL")) return "CREMA MARFIL NEO";
+    if (upper.startsWith("ORIOL AQUA")) return "ORIOL AQUA";
+    if (upper.startsWith("PASSION PULPIS BIANCO") || upper.startsWith("PASSION PULPIS")) return "PASSION PULPIS BIANCO";
+    if (upper.startsWith("SNOW WHITE")) return "SNOW WHITE";
+    if (upper.startsWith("OK")) return "OK";
+    return null;
+  };
+
+  const groupBaseName = productData ? getGroupBaseName(productData.name) : null;
+  const groupVariants = useMemo(() => {
+    if (!groupBaseName || dbProductsList.length === 0) return [];
+    
+    return dbProductsList.filter(p => {
+      const pGroup = getGroupBaseName(p.name);
+      return pGroup === groupBaseName;
+    });
+  }, [groupBaseName, dbProductsList]);
 
   // Fetch product from DB if not legacy
   useEffect(() => {
@@ -998,27 +1073,34 @@ export default function ProductDetailPage({
 
   /* ── Cart ── */
   const performMockAdd = () => {
+    const activeId = productData?.id || fileNameOnly;
+    const activeName = productData?.name || displayName;
+    const activeSlug = productData?.slug || fileNameOnly;
+    const activeImage = productData?.image || imagePath;
+    const activeImageWithoutQuery = activeImage.split("?")[0];
+
     dispatch(
       mockAddToCart({
         id: Math.random().toString(),
         user_id: "preview_user",
-        product_id: fileNameOnly,
+        product_id: activeId,
         quantity: 1,
         unit: "pieces",
         product: {
-          id: fileNameOnly,
-          name: displayName,
+          id: activeId,
+          name: activeName,
           price: details.price,
-          image: imagePath.startsWith("http") ? imagePathWithoutQuery : `/tiles/${imagePathWithoutQuery}`,
+          image: activeImage.startsWith("http") ? activeImageWithoutQuery : `/tiles/${activeImageWithoutQuery}`,
           size: dimension || "600x1200",
           category: category,
-          slug: fileNameOnly
+          slug: activeSlug
         },
       }),
     );
   };
 
   const handleAddToCart = async () => {
+    const activeId = productData?.id || fileNameOnly;
     if (!token) {
       const continueWithoutLogin = typeof window !== "undefined" && localStorage.getItem("tb_continue_without_login") === "true";
       if (!continueWithoutLogin) {
@@ -1035,7 +1117,7 @@ export default function ProductDetailPage({
     try {
       setIsAdding(true);
       await dispatch(
-        addToCartAsync({ product_id: fileNameOnly, quantity: 1, unit: "pieces" }),
+        addToCartAsync({ product_id: activeId, quantity: 1, unit: "pieces" }),
       ).unwrap();
       setIsSuccess(true);
       setCartOpen(true);
@@ -1228,7 +1310,7 @@ export default function ProductDetailPage({
                           className={`relative w-36 h-24 md:w-40 md:h-28 bg-transparent border-[3px] ${isActive ? "border-black" : "border-transparent"} hover:border-black/40 transition-colors overflow-hidden`}
                         >
                           <img
-                            src={path.startsWith("http") ? path.split("?")[0] : path.startsWith("comingsoon/") ? `/${path.split("?")[0]}` : `/tiles/${path.split("?")[0]}`}
+                            src={resolveTileImagePath(path.split("?")[0], product.dimension, product.category)}
                             alt={vName}
                             
                             className="w-full h-full object-cover  p-1"
@@ -1260,6 +1342,44 @@ export default function ProductDetailPage({
             <h1 className="text-3xl md:text-4xl font-serif text-[#4a2c2a] leading-tight mb-6">
               {displayName}
             </h1>
+
+            {/* Group Variants Thumbnails */}
+            {groupVariants.length > 1 && (
+              <div className="mb-8">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#4a2c2a] mb-3">
+                  Select Design Variant
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {groupVariants.map((variant) => {
+                    const isSelected = productData && variant.id === productData.id;
+                    const vImage = variant.image || "";
+                    const vImageWithoutQuery = vImage.split("?")[0];
+                    const vSrc = vImage.startsWith("http")
+                      ? vImageWithoutQuery
+                      : vImageWithoutQuery.startsWith("comingsoon/")
+                        ? `/${vImageWithoutQuery}`
+                        : `/tiles/${vImageWithoutQuery}`;
+
+                    return (
+                      <button
+                        key={variant.id}
+                        onClick={() => {
+                          setProductData(variant);
+                          setImagePath(variant.image || "");
+                        }}
+                        className={`w-16 h-16 bg-white border-2 rounded-sm overflow-hidden flex items-center justify-center p-1 hover:border-[#4a2c2a]/60 transition-colors ${isSelected ? "border-[#4a2c2a] shadow-sm" : "border-gray-200"}`}
+                      >
+                        <img
+                          src={vSrc}
+                          alt={variant.name}
+                          className="w-full h-full object-contain mix-blend-multiply"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Divider */}
             <div className="w-16 h-[1.5px] bg-[#4a2c2a] opacity-30 mb-8" />
@@ -1533,7 +1653,7 @@ export default function ProductDetailPage({
                           className={`relative w-24 h-24 md:w-28 md:h-28 bg-transparent border-2 ${isActive ? "border-[#4a2c2a]" : "border-transparent"} hover:border-[#4a2c2a]/50 transition-colors rounded-sm overflow-hidden`}
                         >
                           <img
-                            src={path.startsWith("http") ? path.split("?")[0] : path.startsWith("comingsoon/") ? `/${path.split("?")[0]}` : `/tiles/${path.split("?")[0]}`}
+                            src={resolveTileImagePath(path.split("?")[0], product.dimension, product.category)}
                             alt={vName}
                             
                             className="w-full h-full object-cover p-2 "

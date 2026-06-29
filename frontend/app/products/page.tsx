@@ -1,12 +1,19 @@
 import React, { Suspense } from "react";
 import TileGallery from "@/components/products/TileGallery";
 import ApplicationPossibilities from "@/components/home/ApplicationPossibilities";
-import { getActiveTilePaths, getAllPreviewPaths } from "@/app/actions";
+import { getAllPreviewPaths } from "@/app/actions";
+import api from "@/lib/axios";
 
 export const revalidate = 15;
 
 export default async function ProductsPage() {
-  const allFiles = await getActiveTilePaths();
+  let products: any[] = [];
+  try {
+    const res = await api.get("/api/products");
+    products = res.data || [];
+  } catch (err: any) {
+    console.error("Failed to fetch products on Server Component:", err.message || err);
+  }
   const previewPaths = await getAllPreviewPaths();
 
   return (
@@ -22,7 +29,7 @@ export default async function ProductsPage() {
           </header>
 
           <Suspense fallback={<div className="py-40 flex justify-center"><div className="animate-spin h-10 w-10 border-b-2 border-[#4a2c2a] rounded-full"></div></div>}>
-            <TileGallery initialImages={allFiles} initialPreviews={previewPaths} />
+            <TileGallery initialProducts={products} initialPreviews={previewPaths} />
           </Suspense>
         </main>
       </section>

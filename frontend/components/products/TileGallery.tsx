@@ -8,8 +8,80 @@ import previewMap from "@/app/previewMap.json";
 
 interface TileGalleryProps {
   initialImages?: string[];
+  initialProducts?: any[];
   initialPreviews?: string[];
 }
+
+const isSubProduct = (name: string): boolean => {
+  if (!name) return false;
+  const upper = name.toUpperCase().trim();
+  
+  if (upper.startsWith("CREMA MARFIL NEO") && (upper.includes("02") || upper.includes("03") || upper.includes("04") || upper.includes("05"))) {
+    return true;
+  }
+  if (upper.startsWith("MARBLE CARRARA") && (upper.includes("02") || upper.includes("03") || upper.includes("04") || upper.includes("05") || upper.includes("06"))) {
+    return true;
+  }
+  if (upper.startsWith("OK (") && !upper.includes("(2)")) {
+    return true;
+  }
+  if (upper.startsWith("ORIOL AQUA") && (upper.includes("02") || upper.includes("03") || upper.includes("04"))) {
+    return true;
+  }
+  if (upper.startsWith("PASSION PULPIS BIANCO") && (upper.includes("02") || upper.includes("03") || upper.includes("04"))) {
+    return true;
+  }
+  if (upper.startsWith("SERENA (") && !upper.includes("(1)")) {
+    return true;
+  }
+  if (upper.startsWith("SNOW WHITE") && (upper.includes("02") || upper.includes("03") || upper.includes("04") || upper.includes("05") || upper.includes("06"))) {
+    return true;
+  }
+  return false;
+};
+
+const resolveTileImagePath = (imageName: string, size?: string, category?: string, version?: string): string => {
+  if (!imageName) return "";
+  if (imageName.startsWith("http")) return imageName;
+  
+  const cleanImageName = imageName.split("?")[0];
+  
+  let resolved = "";
+  if (cleanImageName.includes("/")) {
+    if (cleanImageName.startsWith("comingsoon/")) {
+      resolved = `/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${cleanImageName}`;
+    }
+  } else {
+    const sizeLower = (size || "").toLowerCase().trim();
+    const catLower = (category || "").toLowerCase().trim();
+    
+    let folder = "1200x1200"; // default fallback
+    if (catLower === "accessories" || catLower === "accesories") {
+      folder = "accessories";
+    } else if (sizeLower.includes("1200x1200") || sizeLower.includes("1200 x 1200")) {
+      folder = "1200x1200";
+    } else if (sizeLower.includes("600x1200") || sizeLower.includes("600 x 1200")) {
+      folder = "600x1200";
+    } else if (sizeLower.includes("600x600") || sizeLower.includes("600 x 600")) {
+      folder = "600x600";
+    } else if (sizeLower.includes("300x600") || sizeLower.includes("300 x 600")) {
+      folder = "300x600";
+    } else if (sizeLower === "coming soon" || catLower === "coming soon") {
+      return `/comingsoon/${imageName}`;
+    }
+    resolved = `/tiles/${folder}/${imageName}`;
+  }
+
+  const parts = resolved.split('/');
+  const encodedPath = parts.map((part, idx) => {
+    if (idx === 0 && part === "") return "";
+    return encodeURIComponent(part);
+  }).join('/');
+  
+  return encodedPath + (version ? `?v=${version}` : "");
+};
 
 const getFinish = (fileName: string, localPath?: string) => {
   const name = fileName.toUpperCase();
@@ -255,9 +327,94 @@ const getPreviewUrl = (
   return null;
 };
 
-export default function TileGallery({ initialImages = [], initialPreviews = [] }: TileGalleryProps) {
+export default function TileGallery({
+  initialImages = [],
+  initialProducts = [],
+  initialPreviews = []
+}: TileGalleryProps) {
   const [previewPaths, setPreviewPaths] = useState<string[]>(initialPreviews);
   const [imgVersion, setImgVersion] = useState("");
+
+  const parsedProducts = useMemo(() => {
+    if (initialProducts && initialProducts.length > 0) {
+      return initialProducts;
+    }
+    return initialImages.map((img, idx) => {
+      const imageNameWithoutQuery = img.split("?")[0];
+      const fileNameOnly = imageNameWithoutQuery.split("/").pop() || imageNameWithoutQuery;
+      const finish = getFinish(fileNameOnly, img);
+      let displayName = formatFileName(fileNameOnly);
+      let category = "";
+      let productSlug = "";
+      let isComingSoon = imageNameWithoutQuery.startsWith("comingsoon/");
+      let isOutOfStock = false;
+      let size = "OTHER";
+
+      if (img.includes("?size=")) {
+        size = img.split("?size=")[1].split("&")[0];
+      } else if (!img.startsWith("http")) {
+        const parts = imageNameWithoutQuery.split("/");
+        const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
+        if (sizeFolder) {
+          size = sizeFolder;
+        } else if (parts[0] !== "comingsoon" && parts[0].includes("x")) {
+          size = parts[0].split("?")[0] || "OTHER";
+        }
+      }
+
+      const details = getProductDetails(fileNameOnly, size);
+      let displayPrice = details.price;
+      let displayOriginalPrice = details.price + 5;
+
+      if (img.includes("?")) {
+        const params = new URLSearchParams(img.split("?")[1]);
+        if (params.has("name")) displayName = params.get("name")!;
+        if (params.has("price")) {
+          const parsedPrice = parseFloat(params.get("price")!);
+          displayOriginalPrice = parsedPrice;
+          displayPrice = parsedPrice;
+        }
+        if (params.has("discountPrice")) {
+          displayPrice = parseFloat(params.get("discountPrice")!);
+        }
+        if (params.has("category")) {
+          category = params.get("category")!;
+        }
+        if (params.has("slug")) {
+          productSlug = params.get("slug")!;
+        }
+        if (params.get("isComingSoon") === "true") {
+          isComingSoon = true;
+        }
+        if (params.get("isOutOfStock") === "true") {
+          isOutOfStock = true;
+        }
+      }
+      if (category === "Coming Soon") {
+        isComingSoon = true;
+      }
+
+      return {
+        id: productSlug || fileNameOnly || String(idx),
+        name: displayName,
+        slug: productSlug,
+        price: displayPrice,
+        discount_price: displayOriginalPrice > displayPrice ? displayOriginalPrice : undefined,
+        category: category || (isComingSoon ? "Coming Soon" : "Tiles"),
+        finish: finish,
+        size: size,
+        image: img,
+        is_coming_soon: isComingSoon,
+        is_out_of_stock: isOutOfStock
+      };
+    });
+  }, [initialProducts, initialImages]);
+
+  const [products, setProducts] = useState<any[]>(parsedProducts);
+
+  useEffect(() => {
+    setProducts(parsedProducts);
+  }, [parsedProducts]);
 
   useEffect(() => {
     setImgVersion(Date.now().toString());
@@ -302,128 +459,32 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
 
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
-  const decodedInitialImages = useMemo(() => {
-    return initialImages.map((img) => {
-      if (img.includes("%3F") || img.includes("%2F")) {
-        try {
-          return decodeURIComponent(img);
-        } catch {
-          // ignore
-        }
-      }
-      return img;
-    });
-  }, [initialImages]);
-
-  const deduplicatedImages = useMemo(() => {
-    // First, filter out the variant/grid images that shouldn't be in the gallery at all
-    const baseImages = decodedInitialImages.filter((img) => {
-      const fileName = img.split("/").pop() || img;
-      const upperName = fileName.toUpperCase();
-      const finish = getFinish(fileName, img);
-      const isAccessory = /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(upperName);
-
-      // Remove tile images that do not have a recognized finish
-      if (!isAccessory && finish === "OTHER") {
-        return false;
-      }
-
-      // Only show the main AURL image in the products listing, and hide variant/grid images
-      if (upperName.startsWith("AURL") && (upperName.includes("(1)") || upperName.includes("(2)") || upperName.includes("(3)") || upperName.includes("(5)"))) {
-        return false;
-      }
-      if (upperName.startsWith("GRID_AURL")) {
-        return false;
-      }
-
-      // Only show the main PAVE PARIS image in the products listing, and hide variant/grid images
-      if (upperName.includes("PAVE") && (upperName.includes("(1)") || upperName.includes("(2)") || upperName.includes("(3)") || upperName.includes("(4)"))) {
-        return false;
-      }
-      if (upperName.includes("GRID_PAVE")) {
-        return false;
-      }
-
-      // Hide horizontal preview for SALTED CONCRETO in listing
-      if (upperName.includes("SALTED CONCRETO") && upperName.includes("(1)")) {
-        return false;
-      }
+  const deduplicatedProducts = useMemo(() => {
+    return products.filter((p) => {
+      const nameUpper = p.name ? p.name.toUpperCase() : "";
       
+      // Filter out variants of Serena, Carrara, Crema Marfil Neo, etc.
+      if (isSubProduct(p.name)) {
+        return false;
+      }
+
+      // Filter out grid templates
+      if (nameUpper.startsWith("GRID_AURL") || nameUpper.startsWith("GRID_PAVE")) {
+        return false;
+      }
+
       return true;
     });
-
-    const grouped = new Map<string, string[]>();
-    baseImages.forEach(img => {
-      const fileName = img.split("?")[0].split("/").pop() || img;
-      let baseName = formatFileName(fileName).toLowerCase();
-      if (img.includes("?")) {
-        const params = new URLSearchParams(img.split("?")[1]);
-        if (params.has("name")) {
-          baseName = params.get("name")!.toLowerCase();
-        }
-      }
-      
-      let size = "OTHER";
-      if (img.includes("?size=")) {
-        size = img.split("?size=")[1].split("&")[0];
-      } else if (img.split("/").length > 1 && !img.startsWith("http")) {
-        const parts = img.split("?")[0].split("/");
-        const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
-        if (sizeFolder) {
-          size = sizeFolder;
-        } else if (parts[0] !== "comingsoon" && parts[0].includes("x")) {
-          size = parts[0];
-        }
-      }
-      
-      const key = `${baseName.replace(/[^a-z0-9]/g, "")}_${size.toLowerCase().replace(/[^a-z0-9]/g, "")}`;
-      
-      if (!grouped.has(key)) grouped.set(key, []);
-      grouped.get(key)!.push(img);
-    });
-
-    const result: string[] = [];
-    grouped.forEach((images) => {
-      if (images.length > 1) {
-        const nonMatt = images.filter(img => {
-          const fileName = img.split("/").pop() || img;
-          return getFinish(fileName, img) !== "MATT";
-        });
-        
-        if (nonMatt.length > 0) {
-          // If a non-MATT version exists, discard the MATT versions from the gallery
-          result.push(...nonMatt);
-        } else {
-          result.push(...images);
-        }
-      } else {
-        result.push(images[0]);
-      }
-    });
-    return result;
-  }, [decodedInitialImages]);
+  }, [products]);
 
   const { uniqueSizes, uniqueFinishes, uniqueComingSoonSizes } = useMemo(() => {
     const sizes = new Set<string>();
     const finishes = new Set<string>();
     const csSizes = new Set<string>();
     
-    deduplicatedImages.forEach((img) => {
-      const isComingSoon = img.includes("comingsoon/") || (img.includes("?") && new URLSearchParams(img.split("?")[1]).get("isComingSoon") === "true");
-      
-      let size = "OTHER";
-      if (img.includes("?size=")) {
-        size = img.split("?size=")[1].split("&")[0];
-      } else if (img.split("/").length > 1 && !img.startsWith("http")) {
-        const parts = img.split("?")[0].split("/");
-        const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
-        if (sizeFolder) {
-          size = sizeFolder;
-        } else if (parts[0] !== "comingsoon" && parts[0].includes("x")) {
-          size = parts[0];
-        }
-      }
-      size = size.toLowerCase();
+    deduplicatedProducts.forEach((p) => {
+      const isComingSoon = p.category?.toUpperCase() === "COMING SOON" || p.is_coming_soon;
+      const size = (p.size || "OTHER").toLowerCase();
       
       if (size !== "other") {
         if (isComingSoon) {
@@ -433,73 +494,44 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
         }
       }
       
-      if (!isComingSoon) {
-        const fileName = img.split("?")[0].split("/").pop() || img;
-        const finish = getFinish(fileName, img);
-        if (finish !== "OTHER") finishes.add(finish);
+      if (!isComingSoon && p.finish) {
+        finishes.add(p.finish.toUpperCase());
       }
     });
+
     return {
       uniqueSizes: Array.from(sizes).sort(),
       uniqueFinishes: Array.from(finishes).sort(),
       uniqueComingSoonSizes: Array.from(csSizes).sort(),
     };
-  }, [deduplicatedImages]);
+  }, [deduplicatedProducts]);
 
-  const filteredTiles = useMemo(() => {
-    return deduplicatedImages.filter((img) => {
-      const fileName = img.split("?")[0].split("/").pop() || img;
-      const finish = getFinish(fileName, img);
-      const isComingSoon = img.includes("comingsoon/") || (img.includes("?") && new URLSearchParams(img.split("?")[1]).get("isComingSoon") === "true");
-      
-      let size = "OTHER";
-      if (img.includes("?size=")) {
-        size = img.split("?size=")[1].split("&")[0];
-      } else if (img.split("/").length > 1 && !img.startsWith("http")) {
-        const parts = img.split("?")[0].split("/");
-        const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
-        if (sizeFolder) {
-          size = sizeFolder;
-        } else if (parts[0] !== "comingsoon" && parts[0].includes("x")) {
-          size = parts[0];
-        }
-      }
-      size = size.toLowerCase();
-      
-      const upperName = fileName.toUpperCase();
+  const filteredProducts = useMemo(() => {
+    return deduplicatedProducts.filter((p) => {
+      const categoryUpper = p.category ? p.category.toUpperCase() : "";
+      const finishUpper = p.finish ? p.finish.toUpperCase() : "";
+      const sizeLower = p.size ? p.size.toLowerCase() : "";
+      const nameUpper = p.name ? p.name.toUpperCase() : "";
+      const isComingSoon = categoryUpper === "COMING SOON" || p.is_coming_soon;
+
       if (sizeFilter === "accessories") {
-        let matchesAccessory = true;
+        let matchesAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper);
         if (finishFilter) {
           if (finishFilter === "trim")
-            matchesAccessory = upperName.includes("TRIM");
+            matchesAccessory = nameUpper.includes("TRIM");
           else if (finishFilter === "spacer")
-            matchesAccessory = upperName.includes("SPACER");
+            matchesAccessory = nameUpper.includes("SPACER");
           else if (finishFilter === "wedge")
-            matchesAccessory = upperName.includes("WEDGE");
+            matchesAccessory = nameUpper.includes("WEDGE");
           else if (finishFilter === "adhesive")
-            matchesAccessory =
-              upperName.includes("ADHESIVE") || upperName.includes("GLUE");
+            matchesAccessory = nameUpper.includes("ADHESIVE") || nameUpper.includes("GLUE");
           else if (finishFilter === "matting")
-            matchesAccessory = upperName.includes("MATTING");
+            matchesAccessory = nameUpper.includes("MATTING");
           else matchesAccessory = false;
-        } else {
-          matchesAccessory =
-            upperName.includes("TRIM") ||
-            upperName.includes("SPACER") ||
-            upperName.includes("WEDGE") ||
-            upperName.includes("ADHESIVE") ||
-            upperName.includes("GLUE") ||
-            upperName.includes("MATTING");
         }
         return matchesAccessory;
       } else {
-        const isAccessory =
-          upperName.includes("TRIM") ||
-          upperName.includes("SPACER") ||
-          upperName.includes("WEDGE") ||
-          upperName.includes("ADHESIVE") ||
-          upperName.includes("GLUE") ||
-          upperName.includes("MATTING");
+        const isAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper);
         if (isAccessory) return false;
 
         // Handle Coming Soon products isolation
@@ -513,16 +545,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
           }
         }
 
-        // Fetch category from Supabase-mapped image query params
-        let category = "";
-        if (img.includes("?")) {
-          const params = new URLSearchParams(img.split("?")[1]);
-          if (params.has("category")) {
-            category = params.get("category")!;
-          }
-        }
-
-        const isOutdoor = category.toLowerCase() === "outdoor tiles";
+        const isOutdoor = categoryUpper === "OUTDOOR TILES" || categoryUpper === "OUTDOOR";
         const matchesPlacement =
           !placementFilter ||
           (placementFilter === "outdoor" && isOutdoor) ||
@@ -533,13 +556,14 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
           (finishFilter === "COMING SOON"
             ? true
             : finishFilter === "NEW ARRIVALS"
-              ? upperName.startsWith("EXP") || upperName.startsWith("TC") || upperName.startsWith("AURL") || upperName.includes("PAVE") || upperName.includes("SALTED CONCRETO")
-              : finish === finishFilter);
-        const matchesSize = !sizeFilter || size === sizeFilter;
+              ? nameUpper.startsWith("EXP") || nameUpper.startsWith("TC") || nameUpper.startsWith("AURL") || nameUpper.includes("PAVE") || nameUpper.includes("SALTED CONCRETO")
+              : finishUpper === finishFilter.toUpperCase());
+
+        const matchesSize = !sizeFilter || sizeLower === sizeFilter.toLowerCase();
         return matchesPlacement && matchesFinish && matchesSize;
       }
     });
-  }, [finishFilter, sizeFilter, placementFilter, deduplicatedImages]);
+  }, [finishFilter, sizeFilter, placementFilter, deduplicatedProducts]);
 
   // Helper to create URLs for filters
   const createFilterUrl = (type: "size" | "finish" | "placement", value: string | null) => {
@@ -852,64 +876,23 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
 
       {/* Product Grid (Matching Screenshot & requested design) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-14">
-        {filteredTiles.slice(0, visibleCount).map((imageName) => {
+        {filteredProducts.slice(0, visibleCount).map((p) => {
+          const imageName = p.image || "";
           const imageNameWithoutQuery = imageName.split("?")[0];
           const fileNameOnly = imageNameWithoutQuery.split("/").pop() || imageNameWithoutQuery;
-          const finish = getFinish(fileNameOnly, imageName);
-          const isPoster = fileNameOnly.toUpperCase().includes("POSTER");
+          const finish = p.finish || getFinish(fileNameOnly, imageName);
+          const isPoster = fileNameOnly.toUpperCase().includes("POSTER") || (p.finish && p.finish.toUpperCase() === "POSTER");
           
-          let displayName = formatFileName(fileNameOnly);
-          let category = "";
-          let productSlug = "";
-          let isComingSoon = imageNameWithoutQuery.startsWith("comingsoon/");
-          let isOutOfStock = false;
-          
-          // Determine dimensions
-          let dimension = "N/A";
-          if (imageName.includes("?size=")) {
-            dimension = imageName.split("?size=")[1].split("&")[0];
-          } else if (!imageName.startsWith("http")) {
-            const parts = imageNameWithoutQuery.split("/");
-            const sizeFolder = parts.find(p => p.toLowerCase().includes("x") && /\d+x\d+/i.test(p));
-            if (sizeFolder) {
-              dimension = sizeFolder;
-            } else if (parts[0] !== "comingsoon" && parts[0].includes("x")) {
-              dimension = parts[0].split("?")[0] || "N/A";
-            }
-          }
-          dimension = dimension.toUpperCase();
+          const displayName = p.name;
+          const category = p.category || "";
+          const productSlug = p.slug;
+          const isComingSoon = p.is_coming_soon || category.toLowerCase() === "coming soon";
+          const isOutOfStock = p.is_out_of_stock || p.stock <= 0;
+          const dimension = (p.size || "N/A").toUpperCase();
 
           const details = getProductDetails(fileNameOnly, dimension);
-          let displayPrice = details.price;
-          let displayOriginalPrice = details.price + 5;
-
-          if (imageName.includes("?")) {
-             const params = new URLSearchParams(imageName.split("?")[1]);
-             if (params.has("name")) displayName = params.get("name")!;
-             if (params.has("price")) {
-               const parsedPrice = parseFloat(params.get("price")!);
-               displayOriginalPrice = parsedPrice;
-               displayPrice = parsedPrice;
-             }
-             if (params.has("discountPrice")) {
-               displayPrice = parseFloat(params.get("discountPrice")!);
-             }
-             if (params.has("category")) {
-               category = params.get("category")!;
-             }
-             if (params.has("slug")) {
-               productSlug = params.get("slug")!;
-             }
-             if (params.get("isComingSoon") === "true") {
-               isComingSoon = true;
-             }
-             if (params.get("isOutOfStock") === "true") {
-               isOutOfStock = true;
-             }
-          }
-          if (category === "Coming Soon") {
-             isComingSoon = true;
-          }
+          const displayPrice = p.price;
+          const displayOriginalPrice = p.discount_price || (p.price + 5);
 
           const detailPageUrl = productSlug ? `/products/${productSlug}` : `/products/${encodeURIComponent(imageName)}`;
 
@@ -917,18 +900,17 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
           const previewUrl = getPreviewUrl(imageName, dimension, previewPaths);
 
             return (
-              <div key={imageName} className="group flex flex-col">
+              <div key={p.id || imageName} className="group flex flex-col">
                 {/* Boxed Aspect Ratio like the original design */}
                 <Link
                   href={detailPageUrl}
                   className="relative w-full aspect-[5/4] bg-[#fbfbfb] block mb-5 overflow-hidden group/image cursor-pointer"
                 >
-                  {/* Main Tile Image */}
-                <img
-                  src={imageName.startsWith("http") ? imageNameWithoutQuery : imageNameWithoutQuery.startsWith("comingsoon/") ? `/${imageNameWithoutQuery.split('/').map(s => encodeURIComponent(s)).join('/')}${imgVersion ? `?v=${imgVersion}` : ""}` : `/tiles/${imageNameWithoutQuery.split('/').map(s => encodeURIComponent(s)).join('/')}${imgVersion ? `?v=${imgVersion}` : ""}`}
-                  alt={fileNameOnly}
-                  className={`absolute inset-0 w-full h-full p-6 object-contain mix-blend-multiply transition-opacity duration-300 ${previewUrl ? 'group-hover/image:opacity-0' : 'group-hover/image:scale-105'}`}
-                />
+                  <img
+                   src={resolveTileImagePath(imageName, dimension, category, imgVersion)}
+                   alt={fileNameOnly}
+                   className={`absolute inset-0 w-full h-full p-6 object-contain mix-blend-multiply transition-opacity duration-300 ${previewUrl ? 'group-hover/image:opacity-0' : 'group-hover/image:scale-105'}`}
+                 />
 
                 {/* Hover Preview Image */}
                 {previewUrl && (
@@ -974,7 +956,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
                           / {details.unit}
                         </span>
                       </span>
-                      {!details.isAccessory && displayOriginalPrice > displayPrice && (
+                      {displayOriginalPrice > displayPrice && (
                         <span className="text-[12px] line-through text-gray-300 mb-[2px]">
                           £{displayOriginalPrice.toFixed(2)}
                         </span>
@@ -1008,11 +990,12 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
                   ) : (
                       <AddToCartButton
                         product={{
-                          id: fileNameOnly,
+                          id: p.id || p.slug || fileNameOnly,
                           name: displayName,
                           image: imageName.startsWith("http") ? imageNameWithoutQuery : imageNameWithoutQuery.startsWith("comingsoon/") ? `/${imageNameWithoutQuery}` : `/tiles/${imageNameWithoutQuery}`,
                           price: displayPrice,
-                          category: category
+                          category: category,
+                          size: dimension
                         }}
                       />
                   )}
@@ -1024,10 +1007,10 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
       </div>
 
       {/* Load More Button */}
-      {filteredTiles.length > visibleCount && (
+      {filteredProducts.length > visibleCount && (
         <div className="flex justify-center mt-16 md:mt-24">
           <button
-            onClick={() => setVisibleCount(filteredTiles.length)}
+            onClick={() => setVisibleCount(filteredProducts.length)}
             className="bg-[#4a2c2a] text-white px-10 py-5 text-[11px] font-bold uppercase tracking-[0.25em] shadow-xl hover:bg-[#4a2c2a]/90 active:scale-95 transition-all duration-300"
           >
             Load More
@@ -1073,7 +1056,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
             className="w-full"
           >
             <div className="bg-[#4a2c2a] text-white py-5 rounded-sm text-[11px] font-bold uppercase tracking-widest text-center shadow-xl">
-              View {filteredTiles.length} Masterpieces
+              View {filteredProducts.length} Masterpieces
             </div>
           </button>
         </div>
@@ -1096,7 +1079,7 @@ export default function TileGallery({ initialImages = [], initialPreviews = [] }
         </svg>
       </button>
 
-      {filteredTiles.length === 0 && (
+      {filteredProducts.length === 0 && (
         <div className="text-center py-40">
           <p className="text-2xl font-serif text-gray-200 italic">
             No pieces found matching these criteria.

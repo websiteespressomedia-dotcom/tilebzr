@@ -43,14 +43,46 @@ export async function calculateShippingRateInternal(postcode: string, totalWeigh
     throw new Error('Error fetching rates for the matched zone');
   }
 
-  // Calculate pallets (round up weight to the nearest 1000kg as full pallets)
-  const totalPallets = Math.ceil(totalWeight / 1000);
-  
-  // Sum up prices based only on FULL pallet rates
-  const fullRate = rates.find(r => r.pallet_type === 'FULL')?.price || 0;
-  const totalLogistics = totalPallets * fullRate;
+  const getRate = (type: string, fallbackTypes: string[]): number => {
+    const found = rates.find(r => r.pallet_type === type);
+    if (found) return found.price;
+    for (const f of fallbackTypes) {
+      const fb = rates.find(r => r.pallet_type === f);
+      if (fb) return fb.price;
+    }
+    return 0;
+  };
 
-  return { price: Math.round(totalLogistics), zone: matchedZone.zone_name };
+  const fullRate = getRate('FULL', ['FULL LIGHT', 'HALF', 'QUARTER', 'PARCEL']);
+  const fullLightRate = getRate('FULL LIGHT', ['FULL', 'HALF', 'QUARTER', 'PARCEL']);
+  const halfRate = getRate('HALF', ['FULL LIGHT', 'FULL', 'QUARTER', 'PARCEL']);
+  const quarterRate = getRate('QUARTER', ['HALF', 'FULL LIGHT', 'FULL', 'PARCEL']);
+  const parcelRate = getRate('PARCEL', ['QUARTER', 'HALF', 'FULL LIGHT', 'FULL']);
+
+  let totalPrice = 0;
+  let remainingWeight = totalWeight;
+
+  // Split out 1000kg increments as FULL pallets
+  const fullPallets = Math.floor(remainingWeight / 1000);
+  totalPrice += fullPallets * fullRate;
+  remainingWeight = remainingWeight % 1000;
+
+  // Match remainder weight to the smallest suitable tier
+  if (remainingWeight > 0) {
+    if (remainingWeight <= 30 && rates.some(r => r.pallet_type === 'PARCEL')) {
+      totalPrice += parcelRate;
+    } else if (remainingWeight <= 250) {
+      totalPrice += quarterRate;
+    } else if (remainingWeight <= 500) {
+      totalPrice += halfRate;
+    } else if (remainingWeight <= 750) {
+      totalPrice += fullLightRate;
+    } else {
+      totalPrice += fullRate;
+    }
+  }
+
+  return { price: Math.round(totalPrice), zone: matchedZone.zone_name };
 }
 
 export const getDeliveryRate = async (req: Request, res: Response) => {

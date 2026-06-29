@@ -52,10 +52,7 @@ export default function RegisterPage() {
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    if (e.target.name === 'phone_number') {
-      value = value.replace(/\D/g, "");
-    }
+    const value = e.target.value;
     setFormData({
       ...formData,
       [e.target.name]: value
@@ -64,22 +61,16 @@ export default function RegisterPage() {
   };
 
   const validatePhone = (phone: string) => {
-    const phoneRegex = /^\d{9,11}$/;
-    return phoneRegex.test(phone);
+    return phone.length > 0;
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setValidationError('');
 
-    let cleanPhone = formData.phone_number.trim().replace(/\s+/g, '');
+    let cleanPhone = formData.phone_number.trim();
     if (cleanPhone.startsWith('0')) {
       cleanPhone = cleanPhone.slice(1);
-    }
-
-    if (!validatePhone(cleanPhone)) {
-      setValidationError("Please enter a valid 9-11 digit mobile number");
-      return;
     }
 
     const fullPhoneNumber = `${countryCode}${cleanPhone}`;
@@ -115,8 +106,13 @@ export default function RegisterPage() {
           router.push('/');
         }
       } else {
-        console.error("Google register failed:", (result as any).payload || (result as any).error);
-        setValidationError(typeof result.payload === 'string' ? result.payload : 'Google register failed');
+        const errorMsg = (result as any).payload as string;
+        if (errorMsg && errorMsg.includes('Please register first')) {
+          setGoogleToken(credentialResponse.credential);
+        } else {
+          console.error("Google register failed:", (result as any).payload || (result as any).error);
+          setValidationError(typeof result.payload === 'string' ? result.payload : 'Google login failed');
+        }
       }
     }
   };
@@ -127,14 +123,9 @@ export default function RegisterPage() {
 
     if (!googleToken || !googlePhoneNumber) return;
 
-    let cleanPhone = googlePhoneNumber.trim().replace(/\s+/g, '');
+    let cleanPhone = googlePhoneNumber.trim();
     if (cleanPhone.startsWith('0')) {
       cleanPhone = cleanPhone.slice(1);
-    }
-
-    if (!validatePhone(cleanPhone)) {
-      setValidationError("Please enter a valid 9-11 digit mobile number");
-      return;
     }
     
     const fullPhoneNumber = `${googleCountryCode}${cleanPhone}`;
@@ -188,7 +179,7 @@ export default function RegisterPage() {
                   placeholder="7123456789"
                   value={googlePhoneNumber}
                   onChange={(e) => {
-                    setGooglePhoneNumber(e.target.value.replace(/\D/g, ""));
+                    setGooglePhoneNumber(e.target.value);
                     setValidationError('');
                   }}
                   className="flex-1 p-3 text-[#4a2c2a] border-b border-gray-200 focus:border-[#4a2c2a] outline-none text-sm transition-colors"

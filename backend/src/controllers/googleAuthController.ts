@@ -92,12 +92,7 @@ export const googleRegister = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Phone number is required' });
     }
 
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(phone_number)) {
-      return res.status(400).json({
-        message: 'Please enter a valid mobile number'
-      });
-    }
+
 
     // Verify the Google token
     const ticket = await client.verifyIdToken({

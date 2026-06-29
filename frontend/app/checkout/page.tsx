@@ -510,50 +510,12 @@ export default function CheckoutPage() {
                     })}
                   </div>
 
-                  {/* Discount Code */}
-                  <div className="border-t border-gray-200 pt-6 pb-6">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <input
-                          type="text"
-                          placeholder="Discount code or gift card"
-                          value={couponCode}
-                          onChange={(e) => setCouponCode(e.target.value)}
-                          disabled={!!appliedCoupon || validatingCoupon}
-                          className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm uppercase disabled:bg-gray-50 disabled:text-gray-400"
-                        />
-                      </div>
-                      <button
-                        onClick={handleApplyCoupon}
-                        disabled={!couponCode.trim() || !!appliedCoupon || validatingCoupon}
-                        className="bg-gray-200 text-gray-600 px-6 py-3 text-[11px] font-bold uppercase tracking-wider rounded-sm hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {validatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : "Apply"}
-                      </button>
-                    </div>
-                    {couponError && <p className="text-red-500 text-xs mt-2 font-semibold">{couponError}</p>}
-                    {appliedCoupon && (
-                      <div className="mt-3 flex items-center justify-between bg-green-50 text-green-700 px-4 py-2 rounded-sm border border-green-200">
-                        <div className="flex items-center gap-2 text-sm font-semibold">
-                          <Ticket className="w-4 h-4" /> {appliedCoupon.code} applied!
-                        </div>
-                        <button onClick={() => setAppliedCoupon(null)} className="text-xs underline hover:text-green-800">Remove</button>
-                      </div>
-                    )}
-                  </div>
-
                   {/* Totals */}
                   <div className="border-t border-gray-200 pt-6 space-y-3 mb-6">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Subtotal</span>
                       <span className="font-bold text-[#4a2c2a]">£{subtotalPrice.toFixed(2)}</span>
                     </div>
-                    {appliedCoupon && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-green-600">Discount ({appliedCoupon.code})</span>
-                        <span className="font-bold text-green-600">-£{discountAmount.toFixed(2)}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between text-sm items-center">
                       <span className="text-gray-500">
                         Shipping <span className="text-[10px] uppercase bg-gray-100 px-1 py-0.5 rounded ml-1">{deliveryZone}</span>

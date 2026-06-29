@@ -32,12 +32,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(phone_number)) {
-      return res.status(400).json({
-        message: 'Please enter a valid mobile number'
-      });
-    }
+
 
     // Check if user already exists
     const { data: existingUser } = await supabase

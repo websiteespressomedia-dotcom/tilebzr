@@ -159,8 +159,10 @@ useEffect(() => {
           <div className="shrink-0 relative z-50">
             <Link href="/" className="flex items-center">
               <Image
-                src={logoImg}
+                src="/images/logo-2.png"
                 alt="Logo"
+                width={100}
+                height={100}
                 style={{ objectFit: "contain" }}
                 className="h-12 w-auto md:h-[74px]"
                 priority
@@ -291,8 +293,8 @@ useEffect(() => {
 
         <div className="w-full bg-[#e38a16] py-2 text-white">
           <div className="mx-auto flex max-w-[1380px] justify-center px-6 md:px-10">
-            <p className="text-[11px] font-semibold tracking-wide md:text-[12px] lg:text-[13px] text-center">
-              Free expert advice available, give us a call now on 8866468856
+            <p className="text-[11px] font-semibold tracking-wide md:text-[12px] lg:text-[13px]">
+              Free expert advice available, give us a call now on +44 7424 252426
             </p>
           </div>
         </div>
