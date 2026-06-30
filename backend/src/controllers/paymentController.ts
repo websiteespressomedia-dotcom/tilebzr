@@ -3,6 +3,7 @@ import { supabase } from '../config/supabase.js';
 import * as paypal from '../utils/paypalService.js';
 import Stripe from 'stripe';
 import { calculateShippingRateInternal } from './deliveryController.js';
+import { sendOrderConfirmationEmail } from '../utils/mailer.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_123', {
   apiVersion: '2024-04-10' as any,
@@ -875,6 +876,9 @@ export const placeManualOrder = async (req: Request, res: Response) => {
     if (userId) {
       await supabase.from('cart_items').delete().eq('user_id', userId);
     }
+
+    // 8. Send Confirmation Email
+    await sendOrderConfirmationEmail(email, firstName, order.id, total_amount);
 
     res.status(201).json({
       message: 'Order placed successfully',

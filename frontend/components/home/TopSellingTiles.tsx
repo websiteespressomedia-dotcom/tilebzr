@@ -609,12 +609,7 @@ export default function TopSellingTiles() {
 
   const handleAddToCart = (product: any) => {
     if (!token) {
-      const continueWithoutLogin = typeof window !== "undefined" && localStorage.getItem("tb_continue_without_login") === "true";
-      if (!continueWithoutLogin) {
-        const currentPath = window.location.pathname + window.location.search;
-        router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
-        return;
-      }
+
     }
     // Note: Since these are static products, we'd normally need a real ID from the DB
     // For now, we'll try to use the name as ID if no ID is present, or just show a message
