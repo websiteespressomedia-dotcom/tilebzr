@@ -308,7 +308,12 @@ const syncLocalDirectoryDirectly = async () => {
       const alreadyExists = existingProducts.some((p: any) => {
         const pImage = p.image || '';
         const dbFilename = pImage.includes('/') ? pImage.split('/').pop() : pImage;
-        if (dbFilename && dbFilename.toLowerCase() === filename.toLowerCase()) return true;
+        if (dbFilename && dbFilename.toLowerCase() === filename.toLowerCase()) {
+          const pSize = p.size || '';
+          const normProdSize = pSize.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const normLocalSize = size.toLowerCase().replace(/[^a-z0-9]/g, "");
+          if (normProdSize === normLocalSize) return true;
+        }
 
         if (p.slug && p.slug.toLowerCase() === finalSlug.toLowerCase()) return true;
 

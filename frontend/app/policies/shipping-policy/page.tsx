@@ -29,7 +29,7 @@ const ShippingPolicy = () => {
             <h3 className="text-4xl py-4 font-semibold">Delivery Charges</h3>
             <ul className="list-disc ml-4">
               <li>
-               <b>devliery charges will be applicable</b>
+               <b>Delivery charges will be applicable according to the postcode</b>
               </li>
             </ul>
             <br />

@@ -22,14 +22,33 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
   if (!imageName) return "";
   if (imageName.startsWith("http")) return imageName;
   
-  let cleanImageName = imageName.split("?")[0];
+  // Decode first to prevent double encoding
+  let decodedImageName = "";
+  try {
+    decodedImageName = decodeURIComponent(imageName);
+  } catch (e) {
+    decodedImageName = imageName;
+  }
+  
+  let cleanImageName = decodedImageName.split("?")[0];
+  
+  // Fix: Handle case where frontend prepends /tiles/ to raw filename without size folder
+  if (cleanImageName.includes("/")) {
+    const hasFolder = /1200x1200|600x1200|600x600|300x600|accessories|comingsoon/i.test(cleanImageName);
+    if (!hasFolder) {
+      cleanImageName = cleanImageName.split("/").pop() || cleanImageName;
+    }
+  }
   
   let resolved = "";
   if (cleanImageName.includes("/")) {
-    if (cleanImageName.startsWith("comingsoon/")) {
-      resolved = `/${cleanImageName}`;
+    // Already has /tiles/ or /comingsoon/ prefix — use as-is
+    const bare = cleanImageName.startsWith("/") ? cleanImageName.slice(1) : cleanImageName;
+    if (bare.startsWith("tiles/") || bare.startsWith("comingsoon/")) {
+      resolved = `/${bare}`;
     } else {
-      resolved = `/tiles/${cleanImageName}`;
+      // Relative path from allTiles (e.g. "1200x1200/CREMA MARFIL NEO.jpg") — needs /tiles/ prefix
+      resolved = `/tiles/${bare}`;
     }
   } else {
     const sizeLower = (size || "").toLowerCase().trim();
@@ -317,7 +336,8 @@ const getCategory = (fileName: string) => {
 const getPreviewUrl = (
   imagePath: string,
   size: string,
-  previewPaths: string[]
+  previewPaths: string[],
+  productName?: string
 ): string | null => {
   if (!previewPaths || previewPaths.length === 0) return null;
 
@@ -339,12 +359,17 @@ const getPreviewUrl = (
 
   const targetSize = size.toLowerCase().replace(/\s/g, ""); // e.g. "600x600" or "600x1200"
 
-  const urlWithoutQuery = imagePath.split("?")[0];
-  const fileNameOnly = urlWithoutQuery.split("/").pop() || urlWithoutQuery;
+  // Normalize file based on imagePath or productName
+  let normalizedFile = "";
+  if (imagePath && !imagePath.startsWith("http")) {
+    const urlWithoutQuery = imagePath.split("?")[0];
+    const fileNameOnly = urlWithoutQuery.split("/").pop() || urlWithoutQuery;
+    normalizedFile = normalize(fileNameOnly);
+  } else if (productName) {
+    normalizedFile = normalize(productName);
+  }
 
-  let normalizedFile = normalize(fileNameOnly);
-  
-  if (imagePath.includes("?")) {
+  if (imagePath && imagePath.includes("?")) {
     try {
       const queryStr = imagePath.split("?")[1];
       const params = new URLSearchParams(queryStr);
@@ -370,147 +395,175 @@ const getPreviewUrl = (
     normalizedFile = "phantomdecor";
   }
 
-  // Filter preview paths to only include paths matching the target size folder
+  const findMatchInPaths = (paths: string[], currentSize: string) => {
+    // Split into single_tiles and combo_tiles preview arrays for the current size
+    const singleTiles: { file: string; subPath: string }[] = [];
+    const comboTiles: { file: string; subPath: string }[] = [];
+
+    for (const pathStr of paths) {
+      const parts = pathStr.replace(/\\/g, "/").split("/");
+      if (parts.length === 2) {
+        singleTiles.push({ file: parts[1], subPath: "" });
+      } else if (parts.length > 2) {
+        const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
+        const file = parts[2];
+        if (file) {
+          if (folder === "single_tiles") {
+            singleTiles.push({ file, subPath: "single_tiles" });
+          } else if (folder === "combo_tiles") {
+            comboTiles.push({ file, subPath: "combo_tiles" });
+          }
+        }
+      }
+    }
+
+    // 1. Check single_tiles
+    for (const item of singleTiles) {
+      const preview = item.file;
+      let normPreview = normalize(preview);
+      if (normPreview.endsWith("preview")) {
+        normPreview = normPreview.slice(0, -7);
+      }
+      
+      // Custom logic for matching aurl grigio in single_tiles
+      if (normalizedFile.includes("aurl") && normalizedFile.includes("grigio")) {
+        if (normPreview.includes("aurl") && normPreview.includes("grigio")) {
+          return `/previews/${currentSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+        }
+      }
+      
+      // Custom logic for matching pave paris in single_tiles
+      if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
+        if (normPreview.includes("pave") && normPreview.includes("paris")) {
+          return `/previews/${currentSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+        }
+      }
+      
+      // Custom logic for matching poster pieces in single_tiles
+      if (normalizedFile.includes("poster") && normPreview.includes("poster")) {
+        const fileNum = normalizedFile.replace(/[^0-9]/g, "");
+        const previewNum = normPreview.replace(/[^0-9]/g, "");
+        if (fileNum && fileNum === previewNum) {
+          return `/previews/${currentSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+        }
+      }
+      
+      if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+        return `/previews/${currentSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+      }
+    }
+
+    // 2. Check leftSideVariantsGroup for combo_tiles
+    const leftSideVariantsGroup = [
+      ["artovel 018 dk", "artovel 018 hl"],
+      ["el glitter aqua"],
+      ["gl 2509 decor", "gl 2509 lt"],
+      ["gl 2511 decor", "gl 2511 lt"],
+      ["gl 2513 decore", "gl 2513 lt"],
+      ["gl 2514 decore", "gl 2514 lt"],
+      ["emparador brown"],
+      ["irish red mp 1", "levanto black 3 mo 1"],
+      ["luxurious blue"],
+      ["phantom decor", "phantom onyx white"],
+      ["prizma 08 hl", "prizma 08 lt"],
+      ["prizma 26 hl", "prizma 26 lt"],
+      ["prizma 27 hl", "prizma 27 lt"],
+      ["vectro 1502 hl 2 punch", "vectro 1502 lt"],
+      ["vectro 11003 dk", "vectro 11003 hl"],
+      ["vectro 11051 hl", "vectro 11051 lt"],
+      ["vectro 11080 hl 1", "vectro 11080 hl 2", "vectro 11080 lt"],
+      ["vectro 11083 a", "vectro 11083 b", "vectro 11083 c"],
+      ["vectro 11110 hl", "vectro 11110 lt"],
+      ["waves hl", "waves nero f1"]
+    ];
+
+    const getVariantMatchName = (name: string) => {
+      const urlWithoutQuery = name.split("?")[0];
+      const fileNameOnly = urlWithoutQuery.split("/").pop() || urlWithoutQuery;
+      return fileNameOnly
+        .split("--")[0]
+        .replace(/\.[^/.]+$/, "")
+        .replace(/[-_]/g, " ")
+        .replace(/\bR[1-9]\b/gi, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+    };
+
+    let fileForMatch = "";
+    if (imagePath && !imagePath.startsWith("http")) {
+      const urlWithoutQuery = imagePath.split("?")[0];
+      fileForMatch = urlWithoutQuery.split("/").pop() || urlWithoutQuery;
+    } else if (productName) {
+      fileForMatch = productName;
+    }
+
+    const currentVariantMatch = getVariantMatchName(fileForMatch);
+    
+    const matchedGroup = leftSideVariantsGroup.find((group) =>
+      group.some((item) => item.toLowerCase() === currentVariantMatch)
+    );
+
+    if (matchedGroup) {
+      // Try current variant match first
+      for (const item of comboTiles) {
+        const preview = item.file;
+        const normPreview = normalize(preview);
+        for (const itemMatch of matchedGroup) {
+          const normItem = normalize(itemMatch);
+          if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+            if (currentVariantMatch === itemMatch.toLowerCase()) {
+              if (normPreview === normalize(currentVariantMatch)) {
+                return `/previews/${currentSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+              }
+            }
+          }
+        }
+      }
+      // Fall back to any group match
+      for (const item of comboTiles) {
+        const preview = item.file;
+        const normPreview = normalize(preview);
+        for (const itemMatch of matchedGroup) {
+          const normItem = normalize(itemMatch);
+          if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
+            return `/previews/${currentSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+          }
+        }
+      }
+    }
+
+    // 3. Direct match combo_tiles
+    for (const item of comboTiles) {
+      const preview = item.file;
+      const normPreview = normalize(preview);
+      if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
+        return `/previews/${currentSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+      }
+    }
+
+    return null;
+  };
+
+  // 1. Try to find match in target size directory
   const sizeFilteredPaths = previewPaths.filter((p) => {
     const normP = p.replace(/\\/g, "/");
     return normP.startsWith(`${targetSize}/`);
   });
 
-  if (sizeFilteredPaths.length === 0) return null;
+  const directMatch = findMatchInPaths(sizeFilteredPaths, targetSize);
+  if (directMatch) return directMatch;
 
-  // Split into single_tiles and combo_tiles preview arrays for the current size
-  const singleTiles: { file: string; subPath: string }[] = [];
-  const comboTiles: { file: string; subPath: string }[] = [];
-
-  for (const pathStr of sizeFilteredPaths) {
-    const parts = pathStr.replace(/\\/g, "/").split("/");
-    if (parts.length === 2) {
-      // Direct file in size directory, treat it as single_tiles
-      singleTiles.push({ file: parts[1], subPath: "" });
-    } else if (parts.length > 2) {
-      const folder = parts[1]; // e.g. "single_tiles" or "combo_tiles"
-      const file = parts[2];
-      if (file) {
-        if (folder === "single_tiles") {
-          singleTiles.push({ file, subPath: "single_tiles" });
-        } else if (folder === "combo_tiles") {
-          comboTiles.push({ file, subPath: "combo_tiles" });
-        }
-      }
-    }
-  }
-
-  // 1. Check single_tiles
-  for (const item of singleTiles) {
-    const preview = item.file;
-    let normPreview = normalize(preview);
-    if (normPreview.endsWith("preview")) {
-      normPreview = normPreview.slice(0, -7);
-    }
-    
-    // Custom logic for matching aurl grigio in single_tiles
-    if (normalizedFile.includes("aurl") && normalizedFile.includes("grigio")) {
-      if (normPreview.includes("aurl") && normPreview.includes("grigio")) {
-        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
-      }
-    }
-    
-    // Custom logic for matching pave paris in single_tiles
-    if (normalizedFile.includes("pave") && normalizedFile.includes("paris")) {
-      if (normPreview.includes("pave") && normPreview.includes("paris")) {
-        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
-      }
-    }
-    
-    // Custom logic for matching poster pieces in single_tiles
-    if (normalizedFile.includes("poster") && normPreview.includes("poster")) {
-      const fileNum = normalizedFile.replace(/[^0-9]/g, "");
-      const previewNum = normPreview.replace(/[^0-9]/g, "");
-      if (fileNum && fileNum === previewNum) {
-        return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
-      }
-    }
-    
-    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
-    }
-  }
-
-  // 2. Check leftSideVariantsGroup for combo_tiles
-  const leftSideVariantsGroup = [
-    ["artovel 018 dk", "artovel 018 hl"],
-    ["el glitter aqua"],
-    ["gl 2509 decor", "gl 2509 lt"],
-    ["gl 2511 decor", "gl 2511 lt"],
-    ["gl 2513 decore", "gl 2513 lt"],
-    ["gl 2514 decore", "gl 2514 lt"],
-    ["emparador brown"],
-    ["irish red mp 1", "levanto black 3 mo 1"],
-    ["luxurious blue"],
-    ["phantom decor", "phantom onyx white"],
-    ["prizma 08 hl", "prizma 08 lt"],
-    ["prizma 26 hl", "prizma 26 lt"],
-    ["prizma 27 hl", "prizma 27 lt"],
-    ["vectro 1502 hl 2 punch", "vectro 1502 lt"],
-    ["vectro 11003 dk", "vectro 11003 hl"],
-    ["vectro 11051 hl", "vectro 11051 lt"],
-    ["vectro 11080 hl 1", "vectro 11080 hl 2", "vectro 11080 lt"],
-    ["vectro 11083 a", "vectro 11083 b", "vectro 11083 c"],
-    ["vectro 11110 hl", "vectro 11110 lt"],
-    ["waves hl", "waves nero f1"]
-  ];
-
-  const getVariantMatchName = (name: string) =>
-    name
-      .split("--")[0]
-      .replace(/\.[^/.]+$/, "")
-      .replace(/[-_]/g, " ")
-      .replace(/\bR[1-9]\b/gi, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .toLowerCase();
-
-  const currentVariantMatch = getVariantMatchName(fileNameOnly);
-  
-  const matchedGroup = leftSideVariantsGroup.find((group) =>
-    group.some((item) => item.toLowerCase() === currentVariantMatch)
-  );
-
-  if (matchedGroup) {
-    // Try current variant match first
-    for (const item of comboTiles) {
-      const preview = item.file;
-      const normPreview = normalize(preview);
-      for (const itemMatch of matchedGroup) {
-        const normItem = normalize(itemMatch);
-        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          if (currentVariantMatch === itemMatch.toLowerCase()) {
-            if (normPreview === normalize(currentVariantMatch)) {
-              return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
-            }
-          }
-        }
-      }
-    }
-    // Fall back to any group match
-    for (const item of comboTiles) {
-      const preview = item.file;
-      const normPreview = normalize(preview);
-      for (const itemMatch of matchedGroup) {
-        const normItem = normalize(itemMatch);
-        if (normPreview === normItem || normPreview.startsWith(normItem) || normItem.startsWith(normPreview)) {
-          return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
-        }
-      }
-    }
-  }
-
-  // 3. Direct match combo_tiles
-  for (const item of comboTiles) {
-    const preview = item.file;
-    const normPreview = normalize(preview);
-    if (normalizedFile === normPreview || normalizedFile.startsWith(normPreview) || normPreview.startsWith(normalizedFile)) {
-      return `/previews/${targetSize}${item.subPath ? '/' + item.subPath : ''}/${preview}`;
+  // 2. Fallback: Search in all other size directories
+  const otherSizes = ["600x600", "600x1200", "300x600", "1200x1200"].filter(s => s !== targetSize);
+  for (const otherSize of otherSizes) {
+    const otherFilteredPaths = previewPaths.filter((p) => {
+      const normP = p.replace(/\\/g, "/");
+      return normP.startsWith(`${otherSize}/`);
+    });
+    const fallbackMatch = findMatchInPaths(otherFilteredPaths, otherSize);
+    if (fallbackMatch) {
+      return fallbackMatch;
     }
   }
 
@@ -690,7 +743,7 @@ export default function ProductDetailPage({
     if (upper.startsWith("ORIOL AQUA")) return "ORIOL AQUA";
     if (upper.startsWith("PASSION PULPIS BIANCO") || upper.startsWith("PASSION PULPIS")) return "PASSION PULPIS BIANCO";
     if (upper.startsWith("SNOW WHITE")) return "SNOW WHITE";
-    if (upper.startsWith("OK")) return "OK";
+    if (upper.startsWith("OK") || upper.startsWith("BIANCO STRIATO")) return "BIANCO STRIATO";
     return null;
   };
 
@@ -812,11 +865,17 @@ export default function ProductDetailPage({
         // 2. Try name and size match
         if (!foundTile && targetName) {
           foundTile = allTiles.find(t => {
-            const tPath = t.split("?")[0];
+            let decodedT = "";
+            try {
+              decodedT = decodeURIComponent(t);
+            } catch (e) {
+              decodedT = t;
+            }
+            const tPath = decodedT.split("?")[0];
             const tFile = tPath.split("/").pop() || tPath;
             const tSizeFolder = tPath.split("/")[0] || "";
 
-            const q = t.split("?")[1] || "";
+            const q = decodedT.split("?")[1] || "";
             const up = new URLSearchParams(q);
 
             const rawName = up.get("name") || tFile.split("--")[0].replace(/\.[^/.]+$/, "");
@@ -834,7 +893,13 @@ export default function ProductDetailPage({
           const dbImgFilename = (productData.image.split("/").pop() || "").split("?")[0].toLowerCase().trim();
 
           foundTile = allTiles.find(t => {
-            const tPath = t.split("?")[0];
+            let decodedT = "";
+            try {
+              decodedT = decodeURIComponent(t);
+            } catch (e) {
+              decodedT = t;
+            }
+            const tPath = decodedT.split("?")[0];
             const tFile = (tPath.split("/").pop() || "").toLowerCase().trim();
             const tSizeFolder = tPath.split("/")[0] || "";
 
@@ -842,7 +907,7 @@ export default function ProductDetailPage({
             if (!matchesFilename) return false;
 
             if (targetSize) {
-              const q = t.split("?")[1] || "";
+              const q = decodedT.split("?")[1] || "";
               const up = new URLSearchParams(q);
               const tSize = (up.get("size") || tSizeFolder)
                 .toLowerCase().replace(/[^a-z0-9]/g, "").trim();
@@ -855,7 +920,13 @@ export default function ProductDetailPage({
         // 4. Last resort: match just productData.image filename
         if (!foundTile) {
           foundTile = allTiles.find(t => {
-            const tPath = t.split("?")[0];
+            let decodedT = "";
+            try {
+              decodedT = decodeURIComponent(t);
+            } catch (e) {
+              decodedT = t;
+            }
+            const tPath = decodedT.split("?")[0];
             const tFile = tPath.split("/").pop() || tPath;
             return tFile === productData.image || tPath === productData.image;
           });
@@ -967,7 +1038,7 @@ export default function ProductDetailPage({
   const [showMoreAdhesiveFeats, setShowMoreAdhesiveFeats] = useState(false);
 
 
-  const previewUrl = getPreviewUrl(imagePath, dimension, previewPaths);
+  const previewUrl = getPreviewUrl(imagePath, dimension, previewPaths, displayName);
 
   const currentNameLower = getVariantMatchName(fileNameOnly).toLowerCase();
   const matchedRightGroup = rightSideVariantsGroup.find((g) =>
@@ -1118,7 +1189,7 @@ export default function ProductDetailPage({
           id: activeId,
           name: activeName,
           price: details.price,
-          image: activeImage.startsWith("http") ? activeImageWithoutQuery : `/tiles/${activeImageWithoutQuery}`,
+          image: activeImageWithoutQuery,
           size: dimension || "600x1200",
           category: category,
           slug: activeSlug
@@ -1203,6 +1274,7 @@ export default function ProductDetailPage({
     );
   }
 
+
   return (
     <div className="bg-white min-h-screen pt-20 md:pt-24">
       {/* ── Breadcrumb ── */}
@@ -1256,21 +1328,7 @@ export default function ProductDetailPage({
               )}
             </div>
 
-            {/* Thumbnail strip */}
-            {!(
-              (matchedRightGroup || matchedLeftGroup) &&
-              variantPaths.length > 0
-            ) && !isAurlProduct && !isPaveProduct && !isSaltedProduct && displayImagePath && (
-              <div className="mt-4 flex gap-3">
-                <div className="w-20 h-20 bg-transparent border-2 border-[#4a2c2a] rounded-sm overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
-                  <img
-                    src={resolveTileImagePath(displayImagePath, dimension, category)}
-                    alt="thumb"
-                    className="w-full h-full object-contain "
-                  />
-                </div>
-              </div>
-            )}
+
 
             {/* Ask our experts — all accessories */}
             {details.isAccessory && (
@@ -1318,7 +1376,7 @@ export default function ProductDetailPage({
             )}
 
             {/* LEFT SIDE VARIANTS */}
-            {matchedLeftGroup && variantPaths.length > 0 && (
+            {matchedLeftGroup && variantPaths.length > 0 && !isAurlProduct && !isPaveProduct && !isSaltedProduct && (
               <div className="mt-14 mb-4">
                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#5e7e95] mb-6 text-left">
                   Available Variants
@@ -1355,7 +1413,6 @@ export default function ProductDetailPage({
                 </div>
               </div>
             )}
-
 
           </div>
 
@@ -1657,8 +1714,7 @@ export default function ProductDetailPage({
                 </div>
               </div>
             )}
-
-            {(matchedRightGroup || matchedDynamicGroup) && variantPaths.length > 0 && (
+            {(matchedRightGroup || matchedDynamicGroup) && variantPaths.length > 0 && !isAurlProduct && !isPaveProduct && !isSaltedProduct && (
               <div className="mb-10 pb-10 border-b border-gray-100">
                 <p className="text-[11px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
                   Available Variants

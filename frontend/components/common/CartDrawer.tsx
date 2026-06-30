@@ -129,44 +129,88 @@ import {
 
 import { useRouter } from "next/navigation";
 
+const resolveTileImagePath = (imageName: string, size?: string, category?: string, version?: string): string => {
+  if (!imageName) return "";
+  if (imageName.startsWith("http")) return imageName;
+  
+  // Decode first to prevent double encoding
+  let decodedImageName = "";
+  try {
+    decodedImageName = decodeURIComponent(imageName);
+  } catch (e) {
+    decodedImageName = imageName;
+  }
+  
+  let cleanImageName = decodedImageName.split("?")[0];
+  
+  // Fix: Handle case where frontend prepends /tiles/ to raw filename without size folder
+  if (cleanImageName.includes("/")) {
+    const hasFolder = /1200x1200|600x1200|600x600|300x600|accessories|comingsoon/i.test(cleanImageName);
+    if (!hasFolder) {
+      cleanImageName = cleanImageName.split("/").pop() || cleanImageName;
+    }
+  }
+  
+  let resolved = "";
+  if (cleanImageName.includes("/")) {
+    // Already has /tiles/ or /comingsoon/ prefix — use as-is
+    const bare = cleanImageName.startsWith("/") ? cleanImageName.slice(1) : cleanImageName;
+    if (bare.startsWith("tiles/") || bare.startsWith("comingsoon/")) {
+      resolved = `/${bare}`;
+    } else {
+      // Relative path from allTiles (e.g. "1200x1200/CREMA MARFIL NEO.jpg") — needs /tiles/ prefix
+      resolved = `/tiles/${bare}`;
+    }
+  } else {
+    const sizeLower = (size || "").toLowerCase().trim();
+    const catLower = (category || "").toLowerCase().trim();
+    
+    let folder = "1200x1200"; // default fallback
+    if (catLower === "accessories" || catLower === "accesories" || sizeLower === "accessories") {
+      let subfolder = "";
+      const imgUpper = cleanImageName.toUpperCase();
+      if (imgUpper.includes("TRIM")) {
+        subfolder = "trim/";
+      } else if (imgUpper.includes("WEDGE")) {
+        subfolder = "wedge/";
+      } else if (imgUpper.includes("SPACER") || imgUpper.includes("LEVEL")) {
+        subfolder = "spacer/";
+      } else if (imgUpper.includes("MATTING") || imgUpper.includes("MAT")) {
+        subfolder = "matting/";
+      } else if (imgUpper.includes("ADHESIVE") || imgUpper.includes("GLUE")) {
+        subfolder = "adhesive/";
+      }
+      folder = `accessories/${subfolder}`;
+    } else if (sizeLower.includes("1200x1200") || sizeLower.includes("1200 x 1200")) {
+      folder = "1200x1200";
+    } else if (sizeLower.includes("600x1200") || sizeLower.includes("600 x 1200")) {
+      folder = "600x1200";
+    } else if (sizeLower.includes("600x600") || sizeLower.includes("600 x 600")) {
+      folder = "600x600";
+    } else if (sizeLower.includes("300x600") || sizeLower.includes("300 x 600")) {
+      folder = "300x600";
+    }
+    
+    if (catLower === "coming soon" || catLower === "comingsoon" || sizeLower === "coming soon" || sizeLower === "comingsoon") {
+      resolved = `/comingsoon/${folder}/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${folder}/${cleanImageName}`;
+    }
+  }
+
+  const parts = resolved.split('/');
+  const encodedPath = parts.map((part, idx) => {
+    if (idx === 0 && part === "") return "";
+    return encodeURIComponent(part);
+  }).join('/');
+  
+  return encodedPath + (version ? `?v=${version}` : "");
+};
+
 const getProductImagePath = (product: any) => {
-  if (!product || !product.image) return "/placeholder-tile.jpg";
-  if (product.image.startsWith("http")) return product.image;
-  if (product.image.startsWith("/")) return product.image;
-  if (product.image.toLowerCase().includes("comingsoon/")) {
-    return product.image.startsWith("/") ? product.image : `/${product.image}`;
-  }
-  
-  const category = (product.category || "").toLowerCase();
-  const size = (product.size || "").toLowerCase();
-  const isComingSoon = product.is_coming_soon || category === "coming soon";
-  
-  if (isComingSoon && size === "600x1200") {
-    return `/comingsoon/600x1200/${product.image}`;
-  }
-  
-  const imgName = product.image.toUpperCase();
-  
-  if (category === "accessories" || imgName.includes("TRIM") || imgName.includes("SPACER") || imgName.includes("WEDGE") || imgName.includes("MATTING") || imgName.includes("LEVEL") || imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
-    if (imgName.includes("TRIM")) {
-      return `/tiles/accessories/trim/${product.image}`;
-    }
-    if (imgName.includes("WEDGE")) {
-      return `/tiles/accessories/wedge/${product.image}`;
-    }
-    if (imgName.includes("SPACER")) {
-      return `/tiles/accessories/spacer/${product.image}`;
-    }
-    if (imgName.includes("MATTING") || imgName.includes("LEVEL")) {
-      return `/tiles/accessories/matting/${product.image}`;
-    }
-    if (imgName.includes("ADHESIVE") || imgName.includes("GLUE")) {
-      return `/tiles/accessories/adhesive/${product.image}`;
-    }
-    return `/tiles/accessories/${product.image}`;
-  }
-  
-  return `/tiles/${size}/${product.image}`;
+  if (!product) return "/placeholder-tile.jpg";
+  const cat = product.category || (checkIsAccessory(product) ? "accessories" : "");
+  return resolveTileImagePath(product.image || "", product.size, cat);
 };
 
 // Derive the correct price from the product name using the same rules
@@ -369,13 +413,10 @@ export default function CartDrawer({
                 >
                   {" "}
                   <div className="relative w-24 h-24 flex-shrink-0 bg-[#f9f9f9] rounded-sm">
-                    <Image
+                    <img
                       src={getProductImagePath(product).split("?")[0]}
                       alt={product.name}
-                      fill
-                      unoptimized
-                      sizes="90vw"
-                      className="object-cover"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex flex-col flex-grow">

@@ -17,14 +17,33 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
   if (!imageName) return "";
   if (imageName.startsWith("http")) return imageName;
   
-  let cleanImageName = imageName.split("?")[0];
+  // Decode first to prevent double encoding
+  let decodedImageName = "";
+  try {
+    decodedImageName = decodeURIComponent(imageName);
+  } catch (e) {
+    decodedImageName = imageName;
+  }
+  
+  let cleanImageName = decodedImageName.split("?")[0];
+  
+  // Fix: Handle case where frontend prepends /tiles/ to raw filename without size folder
+  if (cleanImageName.includes("/")) {
+    const hasFolder = /1200x1200|600x1200|600x600|300x600|accessories|comingsoon/i.test(cleanImageName);
+    if (!hasFolder) {
+      cleanImageName = cleanImageName.split("/").pop() || cleanImageName;
+    }
+  }
   
   let resolved = "";
   if (cleanImageName.includes("/")) {
-    if (cleanImageName.startsWith("comingsoon/")) {
-      resolved = `/${cleanImageName}`;
+    // Already has /tiles/ or /comingsoon/ prefix — use as-is
+    const bare = cleanImageName.startsWith("/") ? cleanImageName.slice(1) : cleanImageName;
+    if (bare.startsWith("tiles/") || bare.startsWith("comingsoon/")) {
+      resolved = `/${bare}`;
     } else {
-      resolved = `/tiles/${cleanImageName}`;
+      // Relative path from allTiles (e.g. "1200x1200/CREMA MARFIL NEO.jpg") — needs /tiles/ prefix
+      resolved = `/tiles/${bare}`;
     }
   } else {
     const sizeLower = (size || "").toLowerCase().trim();
@@ -74,7 +93,8 @@ const resolveTileImagePath = (imageName: string, size?: string, category?: strin
 
 const getProductImagePath = (product: any) => {
   if (!product) return "/placeholder-tile.jpg";
-  return resolveTileImagePath(product.image || "", product.size, product.category);
+  const cat = product.category || (checkIsAccessory(product) ? "accessories" : "");
+  return resolveTileImagePath(product.image || "", product.size, cat);
 };
 
 const getFrontendPrice = (product: any): number => {
@@ -128,6 +148,15 @@ export default function CheckoutPage() {
     city: "",
     postcode: "",
     phone: "",
+    country: "United Kingdom",
+  });
+
+  const [billingFormData, setBillingFormData] = useState({
+    firstName: "",
+    lastName: "",
+    address: "",
+    city: "",
+    postcode: "",
     country: "United Kingdom",
   });
 
@@ -192,10 +221,11 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     const fetchDeliveryRate = async () => {
-      if (!formData.postcode) return;
+      const activePostcode = formData.postcode || (!billingSameAsShipping ? billingFormData.postcode : "");
+      if (!activePostcode) return;
       setIsCalculatingDelivery(true);
       try {
-        const res = await api.get(`/api/delivery/rate?postcode=${formData.postcode}&weight=${totalWeight}`);
+        const res = await api.get(`/api/delivery/rate?postcode=${activePostcode}&weight=${totalWeight}`);
         setLogistics(res.data.price);
         setDeliveryZone(res.data.zone);
       } catch (err) {
@@ -206,13 +236,14 @@ export default function CheckoutPage() {
     };
     
     const timeoutId = setTimeout(() => {
-      if (validateUKPostcode(formData.postcode)) {
+      const activePostcode = formData.postcode || (!billingSameAsShipping ? billingFormData.postcode : "");
+      if (validateUKPostcode(activePostcode)) {
          fetchDeliveryRate();
       }
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [formData.postcode, totalWeight]);
+  }, [formData.postcode, billingFormData.postcode, billingSameAsShipping, totalWeight]);
 
   const subtotalPrice = cartItems.reduce((acc, item) => {
     const isAcc = checkIsAccessory(item.product);
@@ -443,25 +474,70 @@ export default function CheckoutPage() {
               {/* Billing Address */}
               <div>
                 <h2 className="text-[16px] font-bold text-[#4a2c2a] mb-6">Billing Address</h2>
-                <div className="border border-gray-200 rounded-sm shadow-sm overflow-hidden">
-                  <div 
-                    onClick={() => setBillingSameAsShipping(true)}
-                    className={`p-4 flex items-center gap-3 cursor-pointer border-b border-gray-200 ${billingSameAsShipping ? 'bg-blue-50/30' : 'bg-white'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${billingSameAsShipping ? 'border-[#4a2c2a]' : 'border-gray-300'}`}>
-                      {billingSameAsShipping && <div className="w-2 h-2 rounded-full bg-[#4a2c2a]" />}
+                <div className="border border-gray-200 rounded-sm shadow-sm overflow-hidden bg-white">
+                  <label className="p-4 flex items-center gap-3 cursor-pointer hover:bg-gray-50 transition-colors">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 accent-[#4a2c2a] cursor-pointer"
+                      checked={!billingSameAsShipping}
+                      onChange={(e) => setBillingSameAsShipping(!e.target.checked)}
+                    />
+                    <span className="text-sm font-bold text-gray-900">Use a different billing address</span>
+                  </label>
+                  {!billingSameAsShipping && (
+                    <div className="p-6 bg-gray-50 border-t border-gray-200 flex flex-col gap-5">
+                      <div className="grid grid-cols-2 gap-4">
+                        <input 
+                          type="text" 
+                          placeholder="First Name"
+                          value={billingFormData.firstName}
+                          onChange={(e) => setBillingFormData({...billingFormData, firstName: e.target.value})}
+                          className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="Last Name"
+                          value={billingFormData.lastName}
+                          onChange={(e) => setBillingFormData({...billingFormData, lastName: e.target.value})}
+                          className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <select 
+                          className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm bg-white"
+                          value={billingFormData.country}
+                          onChange={(e) => setBillingFormData({...billingFormData, country: e.target.value})}
+                        >
+                          <option value="United Kingdom">United Kingdom</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <input 
+                          type="text" 
+                          placeholder="Address"
+                          value={billingFormData.address}
+                          onChange={(e) => setBillingFormData({...billingFormData, address: e.target.value})}
+                          className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <input 
+                          type="text" 
+                          placeholder="City"
+                          value={billingFormData.city}
+                          onChange={(e) => setBillingFormData({...billingFormData, city: e.target.value})}
+                          className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm"
+                        />
+                        <input 
+                          type="text" 
+                          placeholder="Postcode"
+                          value={billingFormData.postcode}
+                          onChange={(e) => setBillingFormData({...billingFormData, postcode: e.target.value})}
+                          className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm uppercase"
+                        />
+                      </div>
                     </div>
-                    <span className="text-sm font-medium">Same as shipping address</span>
-                  </div>
-                  <div 
-                    onClick={() => setBillingSameAsShipping(false)}
-                    className={`p-4 flex items-center gap-3 cursor-pointer ${!billingSameAsShipping ? 'bg-blue-50/30' : 'bg-white'}`}
-                  >
-                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${!billingSameAsShipping ? 'border-[#4a2c2a]' : 'border-gray-300'}`}>
-                      {!billingSameAsShipping && <div className="w-2 h-2 rounded-full bg-[#4a2c2a]" />}
-                    </div>
-                    <span className="text-sm font-medium">Use a different billing address</span>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -470,7 +546,7 @@ export default function CheckoutPage() {
                 <h2 className="text-[16px] font-bold text-[#4a2c2a] mb-6">Complete Order</h2>
                 <div className="bg-[#faf9f8] p-6 border border-gray-100 flex flex-col gap-4">
                   <p className="text-sm text-gray-500 leading-relaxed">
-                    By placing this order, you agree to register your email. A payment link will be sent to your registered email address within 24 hours.
+                    By placing this order, you agree to register your email. Our team will contact you within 24 hours.
                   </p>
                   <button
                     onClick={handlePlaceOrderClick}
@@ -517,12 +593,10 @@ export default function CheckoutPage() {
                         <div key={item.id} className="flex gap-4 items-center">
                           <div className="relative w-16 h-16 flex-shrink-0">
                             <div className="w-full h-full bg-white border border-gray-200 rounded-sm shadow-sm overflow-hidden relative">
-                              <Image 
+                              <img 
                                 src={getProductImagePath(product).split("?")[0]} 
                                 alt={product.name} 
-                                fill 
-                                unoptimized
-                                className="object-cover"
+                                className="w-full h-full object-cover"
                               />
                             </div>
                             <div className="absolute -top-2 -right-2 bg-gray-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold opacity-90 z-10 shadow-sm">

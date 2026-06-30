@@ -340,7 +340,8 @@ function mapLocalPathToUrl(localPath: string, products: any[] = []): string[] {
 
 export async function getActiveTilePaths(): Promise<string[]> {
   const now = Date.now();
-  if (cachedActiveTiles && (now - activeTilesTimestamp < CACHE_TTL_MS)) {
+  const ACTIVE_TILES_TTL_MS = 2000; // 2 seconds to allow instant UI updates on refresh
+  if (cachedActiveTiles && (now - activeTilesTimestamp < ACTIVE_TILES_TTL_MS)) {
     return cachedActiveTiles;
   }
 

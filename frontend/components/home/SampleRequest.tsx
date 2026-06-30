@@ -20,8 +20,8 @@ export default function SampleRequest() {
           </p>
         </div>
 
-        {/* First 3 Info Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+        {/* Info Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           
           {/* Card 1: Full Tile Samples */}
           <div className="bg-white p-8 rounded-sm shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-gray-100 flex flex-col justify-between h-full transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.04)] hover:-translate-y-1">
@@ -32,24 +32,6 @@ export default function SampleRequest() {
               <h3 className="text-lg font-serif mb-3">Full Tile Samples</h3>
               <p className="text-[13px] leading-relaxed text-[#4a2c2a]/70 font-light">
                 Samples ordered through the website are sent as full tile samples, charged at our standard full tile sample rate.
-              </p>
-            </div>
-          </div>
-
-          {/* Card 2: Packaging Adjustments */}
-          <div className="bg-white p-8 rounded-sm shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-gray-100 flex flex-col justify-between h-full transition-all duration-300 hover:shadow-[0_12px_40px_rgba(0,0,0,0.04)] hover:-translate-y-1">
-            <div>
-              <div className="w-12 h-12 rounded-full bg-[#fbfaf9] flex items-center justify-center text-[#4a2c2a] mb-6 border border-[#4a2c2a]/10">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-[#4a2c2a]">
-                  <line x1="6" y1="3" x2="6" y2="21"></line>
-                  <line x1="18" y1="3" x2="18" y2="21"></line>
-                  <line x1="3" y1="6" x2="21" y2="6"></line>
-                  <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
-              </div>
-              <h3 className="text-lg font-serif mb-3">Size Adjustments</h3>
-              <p className="text-[13px] leading-relaxed text-[#4a2c2a]/70 font-light">
-                Any samples ordered over 60 x 60cm in size will be cut down to fit our packaging safely.
               </p>
             </div>
           </div>

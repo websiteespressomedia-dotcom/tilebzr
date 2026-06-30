@@ -65,6 +65,84 @@ const formatFileName = (name: string) => {
     .trim();
 };
 
+const resolveTileImagePath = (imageName: string, size?: string, category?: string, version?: string): string => {
+  if (!imageName) return "";
+  if (imageName.startsWith("http")) return imageName;
+  
+  // Decode first to prevent double encoding
+  let decodedImageName = "";
+  try {
+    decodedImageName = decodeURIComponent(imageName);
+  } catch (e) {
+    decodedImageName = imageName;
+  }
+  
+  let cleanImageName = decodedImageName.split("?")[0];
+  
+  // Fix: Handle case where frontend prepends /tiles/ to raw filename without size folder
+  if (cleanImageName.includes("/")) {
+    const hasFolder = /1200x1200|600x1200|600x600|300x600|accessories|comingsoon/i.test(cleanImageName);
+    if (!hasFolder) {
+      cleanImageName = cleanImageName.split("/").pop() || cleanImageName;
+    }
+  }
+  
+  let resolved = "";
+  if (cleanImageName.includes("/")) {
+    // Already has /tiles/ or /comingsoon/ prefix — use as-is
+    const bare = cleanImageName.startsWith("/") ? cleanImageName.slice(1) : cleanImageName;
+    if (bare.startsWith("tiles/") || bare.startsWith("comingsoon/")) {
+      resolved = `/${bare}`;
+    } else {
+      // Relative path from allTiles (e.g. "1200x1200/CREMA MARFIL NEO.jpg") — needs /tiles/ prefix
+      resolved = `/tiles/${bare}`;
+    }
+  } else {
+    const sizeLower = (size || "").toLowerCase().trim();
+    const catLower = (category || "").toLowerCase().trim();
+    
+    let folder = "1200x1200"; // default fallback
+    if (catLower === "accessories" || catLower === "accesories" || sizeLower === "accessories") {
+      let subfolder = "";
+      const imgUpper = cleanImageName.toUpperCase();
+      if (imgUpper.includes("TRIM")) {
+        subfolder = "trim/";
+      } else if (imgUpper.includes("WEDGE")) {
+        subfolder = "wedge/";
+      } else if (imgUpper.includes("SPACER") || imgUpper.includes("LEVEL")) {
+        subfolder = "spacer/";
+      } else if (imgUpper.includes("MATTING") || imgUpper.includes("MAT")) {
+        subfolder = "matting/";
+      } else if (imgUpper.includes("ADHESIVE") || imgUpper.includes("GLUE")) {
+        subfolder = "adhesive/";
+      }
+      folder = `accessories/${subfolder}`;
+    } else if (sizeLower.includes("1200x1200") || sizeLower.includes("1200 x 1200")) {
+      folder = "1200x1200";
+    } else if (sizeLower.includes("600x1200") || sizeLower.includes("600 x 1200")) {
+      folder = "600x1200";
+    } else if (sizeLower.includes("600x600") || sizeLower.includes("600 x 600")) {
+      folder = "600x600";
+    } else if (sizeLower.includes("300x600") || sizeLower.includes("300 x 600")) {
+      folder = "300x600";
+    }
+    
+    if (catLower === "coming soon" || catLower === "comingsoon" || sizeLower === "coming soon" || sizeLower === "comingsoon") {
+      resolved = `/comingsoon/${folder}/${cleanImageName}`;
+    } else {
+      resolved = `/tiles/${folder}/${cleanImageName}`;
+    }
+  }
+
+  const parts = resolved.split('/');
+  const encodedPath = parts.map((part, idx) => {
+    if (idx === 0 && part === "") return "";
+    return encodeURIComponent(part);
+  }).join('/');
+  
+  return encodedPath + (version ? `?v=${version}` : "");
+};
+
 export default function WishlistPage() {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -179,14 +257,7 @@ export default function WishlistPage() {
       const size = sizeParam ? decodeURIComponent(sizeParam) : (fullPath.split("/")[0] || "N/A");
 
       const cleanPath = fullPath.split("?")[0];
-      let resolvedImage = "";
-      if (cleanPath.startsWith("http")) {
-        resolvedImage = cleanPath;
-      } else if (cleanPath.startsWith("comingsoon/")) {
-        resolvedImage = `/${cleanPath.split('/').map(s => encodeURIComponent(s)).join('/')}`;
-      } else {
-        resolvedImage = `/tiles/${cleanPath.split('/').map(s => encodeURIComponent(s)).join('/')}`;
-      }
+      const resolvedImage = resolveTileImagePath(cleanPath, size, category);
 
       const isComingSoonParam = params.get("isComingSoon");
       const isOutOfStockParam = params.get("isOutOfStock");
@@ -286,13 +357,10 @@ export default function WishlistPage() {
                       className={`relative w-full aspect-[5/4] block mb-5 overflow-hidden group/image cursor-pointer border border-gray-50 hover:border-gray-100 transition-colors`}
                       style={{ backgroundColor: isCarrara ? '#f4eedb' : '#fbfbfb' }}
                     >
-                      <Image
+                      <img
                         src={imagePath}
                         alt={product.name}
-                        fill
-                        style={{ objectFit: "contain", padding: "2rem" }}
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                        className="mix-blend-multiply transition-transform duration-700 group-hover/image:scale-105"
+                        className="mix-blend-multiply transition-transform duration-700 group-hover/image:scale-105 absolute inset-0 w-full h-full p-6 object-contain"
                       />
 
                       {/* View Details Overlay */}

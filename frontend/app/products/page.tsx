@@ -1,20 +1,17 @@
 import React, { Suspense } from "react";
 import TileGallery from "@/components/products/TileGallery";
 import ApplicationPossibilities from "@/components/home/ApplicationPossibilities";
-import { getAllPreviewPaths } from "@/app/actions";
-import api from "@/lib/axios";
+import { getActiveTilePaths, getAllPreviewPaths } from "@/app/actions";
 
-export const revalidate = 15;
+export const dynamic = "force-dynamic";
 
 export default async function ProductsPage() {
-  let products: any[] = [];
-  try {
-    const res = await api.get("/api/products");
-    products = res.data || [];
-  } catch (err: any) {
-    console.error("Failed to fetch products on Server Component:", err.message || err);
-  }
-  const previewPaths = await getAllPreviewPaths();
+  // getActiveTilePaths() reads ALL tile images from public/tiles (all size folders)
+  // and enriches them with DB product data (name, price, slug, etc.)
+  const [imagePaths, previewPaths] = await Promise.all([
+    getActiveTilePaths(),
+    getAllPreviewPaths(),
+  ]);
 
   return (
     <div className="bg-white min-h-screen">
@@ -29,7 +26,7 @@ export default async function ProductsPage() {
           </header>
 
           <Suspense fallback={<div className="py-40 flex justify-center"><div className="animate-spin h-10 w-10 border-b-2 border-[#4a2c2a] rounded-full"></div></div>}>
-            <TileGallery initialProducts={products} initialPreviews={previewPaths} />
+            <TileGallery initialImages={imagePaths} initialPreviews={previewPaths} />
           </Suspense>
         </main>
       </section>

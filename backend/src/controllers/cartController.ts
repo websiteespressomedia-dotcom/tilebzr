@@ -163,7 +163,8 @@ export const getMyCart = async (req: Request, res: Response) => {
           price,
           discount_price,
           image,
-          size
+          size,
+          category
         )
       `)
       .eq('user_id', user_id);
