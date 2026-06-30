@@ -320,21 +320,18 @@ export default function CheckoutPage() {
     errors.postcode === "" &&
     errors.country === "";
 
-  const handlePlaceOrderClick = () => {
+  const handlePlaceOrderClick = async () => {
     if (!isFormValid) {
       toast.error("Please fill in all contact and shipping address details.");
       return;
     }
-    setModalEmail(formData.email);
-    setIsModalOpen(true);
-  };
-
-  const handleManualOrderSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!modalEmail || !modalEmail.includes("@")) {
-      toast.error("Please enter a valid email address.");
+    
+    if (!user) {
+      toast.error("Please login first to place an order.");
+      router.push("/login?redirect=/checkout");
       return;
     }
+
     setIsProcessing(true);
     setErrorMsg(null);
     try {
@@ -345,7 +342,7 @@ export default function CheckoutPage() {
       }));
 
       const response = await api.post("/api/payments/place-manual-order", {
-        email: modalEmail,
+        email: formData.email || user.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
@@ -359,7 +356,6 @@ export default function CheckoutPage() {
 
       setCreatedLocalOrderId(response.data.orderId);
       dispatch(clearCart());
-      setIsModalOpen(false);
       setIsSuccess(true);
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || err.message || "Failed to place your order.");
@@ -368,6 +364,7 @@ export default function CheckoutPage() {
       setIsProcessing(false);
     }
   };
+
 
   if (!isMounted) return null;
 
@@ -659,47 +656,6 @@ export default function CheckoutPage() {
 
         </div>
       </div>
-
-      {/* Email Confirmation Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white p-8 md:p-10 max-w-lg w-full rounded-sm shadow-2xl relative border border-gray-100 animate-in fade-in zoom-in duration-200 text-left">
-            <h3 className="text-2xl font-serif text-[#4a2c2a] mb-4">Confirm Email Address</h3>
-            <p className="text-sm text-gray-500 mb-6 leading-relaxed">
-              Please confirm the email address where we will send your order details and payment link.
-            </p>
-            <form onSubmit={handleManualOrderSubmit}>
-              <div className="mb-6">
-                <label className="block text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={modalEmail}
-                  onChange={(e) => setModalEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm bg-white"
-                />
-              </div>
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3.5 border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors text-[10px] font-bold uppercase tracking-widest rounded-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isProcessing}
-                  className="flex-1 py-3.5 bg-[#4a2c2a] text-white hover:bg-black transition-colors text-[10px] font-bold uppercase tracking-widest rounded-sm flex items-center justify-center gap-2"
-                >
-                  {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm Order"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

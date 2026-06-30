@@ -24,7 +24,8 @@ export const sendOrderConfirmationEmail = async (email: string, firstName: strin
         <p>Your order total is <strong>£${amount.toFixed(2)}</strong>.</p>
         <p style="background-color: #f9f9f9; padding: 15px; border-left: 4px solid #4a2c2a; margin: 20px 0;">
           <strong>Payment Link:</strong><br/>
-          Our team is currently reviewing your order. We will share the secure payment link with you via this registered email address within the next 24 hours.
+          You can securely pay for your order by visiting your profile page: <br/>
+          <a href="${process.env.FRONTEND_URL}/profile" style="color: #4a2c2a; font-weight: bold; display: inline-block; margin-top: 10px; text-decoration: underline;">Click here to view your order and pay</a>
         </p>
         <p>If you have any questions in the meantime, feel free to reply to this email or contact our support team.</p>
         <p>Best Regards,<br/><strong>Tile Bazaar Team</strong></p>
