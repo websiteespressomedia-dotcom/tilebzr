@@ -576,7 +576,7 @@ export default function CheckoutPage() {
                 </div>
               ) : (
                 <>
-                  <div className="space-y-5 mb-8 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+                  <div className="space-y-5 mb-8 max-h-[400px] overflow-y-auto pt-2 pr-2 no-scrollbar">
                     {cartItems.map((item) => {
                       const product = item.product;
                       if (!product) return null;
