@@ -80,33 +80,46 @@ export const addToCart = async (req: Request, res: Response) => {
         if (productByName) {
           finalProductId = productByName.id;
         } else {
-          // Register the product on the fly!
-          const category = getCategory(cleanFileName);
-          const size = cleanFileName.toUpperCase().includes("600X1200") ? "600X1200" : (cleanFileName.toUpperCase().includes("600X600") ? "600X600" : "600X600");
-          const finish = getFinish(cleanFileName);
-          const details = getProductDetails(cleanFileName);
+          const expectedSlug = cleanFileName.toLowerCase();
           
-          const { data: newProduct, error: insertError } = await supabase
+          // Before inserting, check if the slug already exists to prevent 500 duplicate key error
+          const { data: productBySlug } = await supabase
             .from('products')
-            .insert([{
-              name: displayName,
-              slug: cleanFileName.toLowerCase(),
-              description: 'Premium quality tile/accessory.',
-              price: details.price,
-              discount_price: 0, // No discount for fallback products
-              stock: 1000,
-              category: category,
-              finish: finish,
-              size: size,
-              thickness: '9mm',
-              material: 'Porcelain',
-              image: cleanFileName,
-              is_active: true
-            }])
-            .select().single();
+            .select('id')
+            .eq('slug', expectedSlug)
+            .maybeSingle();
+
+          if (productBySlug) {
+             finalProductId = productBySlug.id;
+          } else {
+            // Register the product on the fly!
+            const category = getCategory(cleanFileName);
+            const size = cleanFileName.toUpperCase().includes("600X1200") ? "600X1200" : (cleanFileName.toUpperCase().includes("600X600") ? "600X600" : "600X600");
+            const finish = getFinish(cleanFileName);
+            const details = getProductDetails(cleanFileName);
             
-          if (insertError) throw insertError;
-          finalProductId = newProduct.id;
+            const { data: newProduct, error: insertError } = await supabase
+              .from('products')
+              .insert([{
+                name: displayName,
+                slug: expectedSlug,
+                description: 'Premium quality tile/accessory.',
+                price: details.price,
+                discount_price: 0, // No discount for fallback products
+                stock: 1000,
+                category: category,
+                finish: finish,
+                size: size,
+                thickness: '9mm',
+                material: 'Porcelain',
+                image: cleanFileName,
+                is_active: true
+              }])
+              .select().single();
+              
+            if (insertError) throw insertError;
+            finalProductId = newProduct.id;
+          }
         }
       }
     }
