@@ -23,24 +23,35 @@ app.use(helmet());
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  'https://tilebazaardemowork-npbm.vercel.app',
+  'https://tilebazaar.co.uk',
+  'https://www.tilebazaar.co.uk',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'http://localhost:3001',
   'http://127.0.0.1:3001',
-  'http://localhost:5000'
+  'http://localhost:5000',
+  'https://localhost:3000',
+  'https://127.0.0.1:3000',
+  'https://localhost:3001',
+  'https://127.0.0.1:3001',
+  'https://localhost:5000',
+  'https://127.0.0.1:5000'
 ].filter(Boolean) as string[];
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     return callback(new Error('Not allowed by CORS'));
   },
-  credentials: true
-}));
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
+
+app.use(cors(corsOptions));
+app.options(/(.*)/, cors(corsOptions));
 
 // 2. Body Parsers
 app.use(express.json());

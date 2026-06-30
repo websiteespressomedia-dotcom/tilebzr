@@ -307,10 +307,10 @@ export default function CartDrawer({
   const displayPallet = totalPallets > 0 ? `${totalPallets} FULL` : "0";
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && token) {
       dispatch(fetchCart());
     }
-  }, [isOpen, dispatch]);
+  }, [isOpen, token, dispatch]);
 
   const handleUpdateQuantity = async (
     cartItemId: string,
