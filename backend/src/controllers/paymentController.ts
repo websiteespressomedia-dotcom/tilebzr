@@ -74,7 +74,9 @@ export const createPaypalPayment = async (req: Request, res: Response) => {
 
       const productIds = bodyCartItems.map((item: any) => item.product_id || (item.product && item.product.id) || (item.product && item.product.image) || item.image).filter(Boolean);
       const uuids = productIds.filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
-      const filenames = productIds.filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
+      const filenames = productIds
+        .filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id))
+        .map((id: string) => id.split('/').pop());
 
       let dbProducts: any[] = [];
       if (uuids.length > 0) {
@@ -97,7 +99,10 @@ export const createPaypalPayment = async (req: Request, res: Response) => {
       }
 
       cartItems = bodyCartItems.map((item: any) => {
-        const product = dbProducts.find((p: any) => p.id === item.product_id || p.image === item.product_id);
+        const product = dbProducts.find((p: any) => {
+          const cleanItemId = typeof item.product_id === 'string' ? item.product_id.split('/').pop() : item.product_id;
+          return p.id === item.product_id || p.image === item.product_id || p.image === cleanItemId;
+        });
         return {
           quantity: item.quantity,
           unit: item.unit || 'boxes',
@@ -387,7 +392,9 @@ export const createStripePaymentIntent = async (req: Request, res: Response) => 
 
       const productIds = bodyCartItems.map((item: any) => item.product_id || (item.product && item.product.id) || (item.product && item.product.image) || item.image).filter(Boolean);
       const uuids = productIds.filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
-      const filenames = productIds.filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
+      const filenames = productIds
+        .filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id))
+        .map((id: string) => id.split('/').pop());
 
       let dbProducts: any[] = [];
       if (uuids.length > 0) {
@@ -410,7 +417,10 @@ export const createStripePaymentIntent = async (req: Request, res: Response) => 
       }
 
       cartItems = bodyCartItems.map((item: any) => {
-        const product = dbProducts.find((p: any) => p.id === item.product_id || p.image === item.product_id);
+        const product = dbProducts.find((p: any) => {
+          const cleanItemId = typeof item.product_id === 'string' ? item.product_id.split('/').pop() : item.product_id;
+          return p.id === item.product_id || p.image === item.product_id || p.image === cleanItemId;
+        });
         return {
           quantity: item.quantity,
           unit: item.unit || 'boxes',
@@ -717,7 +727,9 @@ export const placeManualOrder = async (req: Request, res: Response) => {
 
       const productIds = bodyCartItems.map((item: any) => item.product_id || (item.product && item.product.id) || (item.product && item.product.image) || item.image).filter(Boolean);
       const uuids = productIds.filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
-      const filenames = productIds.filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
+      const filenames = productIds
+        .filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id))
+        .map((id: string) => id.split('/').pop());
 
       let dbProducts: any[] = [];
       if (uuids.length > 0) {
@@ -740,7 +752,10 @@ export const placeManualOrder = async (req: Request, res: Response) => {
       }
 
       cartItemsList = bodyCartItems.map((item: any) => {
-        const product = dbProducts.find((p: any) => p.id === item.product_id || p.image === item.product_id);
+        const product = dbProducts.find((p: any) => {
+          const cleanItemId = typeof item.product_id === 'string' ? item.product_id.split('/').pop() : item.product_id;
+          return p.id === item.product_id || p.image === item.product_id || p.image === cleanItemId;
+        });
         return {
           quantity: item.quantity,
           unit: item.unit || 'boxes',
