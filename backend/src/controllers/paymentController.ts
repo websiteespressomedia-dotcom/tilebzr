@@ -759,7 +759,7 @@ export const placeManualOrder = async (req: Request, res: Response) => {
 
     // 2. Fetch cart items details
     let cartItemsList: any[] = [];
-    if (!userId) {
+    if (true) {
       if (!bodyCartItems || !Array.isArray(bodyCartItems) || bodyCartItems.length === 0) {
         return res.status(400).json({ message: "Your cart is empty." });
       }
@@ -813,21 +813,6 @@ export const placeManualOrder = async (req: Request, res: Response) => {
       if (cartItemsList.length === 0) {
         return res.status(400).json({ message: "No valid products in cart." });
       }
-    } else {
-      const { data: dbCartItems, error: cartError } = await supabase
-        .from('cart_items')
-        .select(`
-          quantity,
-          unit,
-          product_id,
-          products (name, image, price, discount_price, category, size)
-        `)
-        .eq('user_id', userId);
-
-      if (cartError || !dbCartItems || dbCartItems.length === 0) {
-        return res.status(400).json({ message: "Your cart is empty." });
-      }
-      cartItemsList = dbCartItems;
     }
 
     // 3. Perform server-side calculations
