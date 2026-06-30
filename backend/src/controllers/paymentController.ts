@@ -899,8 +899,10 @@ export const placeManualOrder = async (req: Request, res: Response) => {
       await supabase.from('cart_items').delete().eq('user_id', userId);
     }
 
-    // 8. Send Confirmation Email
-    await sendOrderConfirmationEmail(email, firstName, order.id, total_amount);
+    // 8. Send Confirmation Email (Non-blocking)
+    sendOrderConfirmationEmail(email, firstName, order.id, total_amount).catch(err => {
+      console.error("Failed to send order confirmation email:", err);
+    });
 
     res.status(201).json({
       message: 'Order placed successfully',
