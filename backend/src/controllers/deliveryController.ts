@@ -67,19 +67,9 @@ export async function calculateShippingRateInternal(postcode: string, totalWeigh
   totalPrice += fullPallets * fullRate;
   remainingWeight = remainingWeight % 1000;
 
-  // Match remainder weight to the smallest suitable tier
+  // Any remaining weight (even a single accessory or 1 tile box) is now charged as a FULL pallet.
   if (remainingWeight > 0) {
-    if (remainingWeight <= 30 && rates.some(r => r.pallet_type === 'PARCEL')) {
-      totalPrice += parcelRate;
-    } else if (remainingWeight <= 250) {
-      totalPrice += quarterRate;
-    } else if (remainingWeight <= 500) {
-      totalPrice += halfRate;
-    } else if (remainingWeight <= 750) {
-      totalPrice += fullLightRate;
-    } else {
-      totalPrice += fullRate;
-    }
+    totalPrice += fullRate;
   }
 
   return { price: Math.round(totalPrice), zone: matchedZone.zone_name };

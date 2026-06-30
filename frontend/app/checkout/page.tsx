@@ -185,7 +185,7 @@ export default function CheckoutPage() {
   const totalWeight = cartItems.reduce((acc, item) => {
     const product = item.product;
     const isAcc = checkIsAccessory(product);
-    if (isAcc) return acc;
+    if (isAcc) return acc + (item.quantity * 0.5); // Add 0.5kg per accessory so delivery is charged
     const is600x600 = (product?.size || "").toLowerCase().includes("600x600");
     const is300x600 = (product?.size || "").toLowerCase().includes("300x600");
     const piecesPerBox = is600x600 ? 4 : (is300x600 ? 8 : 2);
