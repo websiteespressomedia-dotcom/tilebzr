@@ -336,7 +336,7 @@ export default function CheckoutPage() {
     setErrorMsg(null);
     try {
       const payloadCartItems = cartItems.map((item) => ({
-        product_id: item.product_id,
+        product_id: item.product_id || (item.product && item.product.id) || (item.product && item.product.image),
         quantity: item.quantity,
         unit: item.unit || 'boxes',
       }));

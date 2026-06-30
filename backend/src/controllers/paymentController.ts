@@ -37,6 +37,7 @@ const getCategory = (fileName: string) => {
 };
 
 const autoRegisterProduct = async (cleanFileName: string) => {
+  if (!cleanFileName || typeof cleanFileName !== "string") return null;
   const displayName = cleanFileName.split('--')[0].replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
   const expectedSlug = cleanFileName.toLowerCase();
   
@@ -111,7 +112,7 @@ export const createPaypalPayment = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Your cart is empty." });
       }
 
-      const productIds = bodyCartItems.map((item: any) => item.product_id);
+      const productIds = bodyCartItems.map((item: any) => item.product_id || (item.product && item.product.id) || (item.product && item.product.image) || item.image).filter(Boolean);
       const uuids = productIds.filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
       const filenames = productIds.filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
 
@@ -429,7 +430,7 @@ export const createStripePaymentIntent = async (req: Request, res: Response) => 
         return res.status(400).json({ message: "Your cart is empty." });
       }
 
-      const productIds = bodyCartItems.map((item: any) => item.product_id);
+      const productIds = bodyCartItems.map((item: any) => item.product_id || (item.product && item.product.id) || (item.product && item.product.image) || item.image).filter(Boolean);
       const uuids = productIds.filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
       const filenames = productIds.filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
 
@@ -764,7 +765,7 @@ export const placeManualOrder = async (req: Request, res: Response) => {
         return res.status(400).json({ message: "Your cart is empty." });
       }
 
-      const productIds = bodyCartItems.map((item: any) => item.product_id);
+      const productIds = bodyCartItems.map((item: any) => item.product_id || (item.product && item.product.id) || (item.product && item.product.image) || item.image).filter(Boolean);
       const uuids = productIds.filter((id: string) => /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
       const filenames = productIds.filter((id: string) => !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id));
 
