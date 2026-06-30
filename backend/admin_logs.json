@@ -1,5 +1,14 @@
 [
   {
+    "id": "tg01rzc5z",
+    "admin_email": "jane@tilebazaar.co.uk",
+    "admin_name": "Jane Smith",
+    "action": "LOGOUT",
+    "details": "Logged out of the system",
+    "page": "/admin",
+    "created_at": "2026-06-30T07:49:08.220Z"
+  },
+  {
     "id": "z8ma18fsq",
     "admin_email": "jane@tilebazaar.co.uk",
     "admin_name": "Jane Smith",

@@ -429,47 +429,49 @@ export default function CheckoutPage() {
               </div>
 
               {/* Shipping Address */}
-              <div>
-                <h2 className="text-[16px] font-bold text-[#4a2c2a] mb-6">Shipping Address</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="md:col-span-2">
-                    <select 
-                      name="country" 
-                      value={formData.country} 
-                      onChange={handleInputChange} 
-                      className={`w-full border bg-white px-4 py-3.5 text-sm text-black focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm ${errors.country ? 'border-red-500' : 'border-gray-200'}`}                    >
-                      <option value="United Kingdom">United Kingdom</option>
-                    </select>
-                    {errors.country && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.country}</p>}
-                  </div>
-                  <div className="md:col-span-2">
-                    <input 
-                      required 
-                      type="text" 
-                      name="address" 
-                      placeholder="Address"
-                      value={formData.address} 
-                      onChange={handleInputChange} 
-                      className={`w-full border px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm ${errors.address ? 'border-red-500' : 'border-gray-200'}`}                    />
-                    {errors.address && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.address}</p>}
-                  </div>
-                  <div>
-                    <input required type="text" name="city" placeholder="City" value={formData.city} onChange={handleInputChange} className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm" />
-                  </div>
-                  <div>
-                    <input 
-                      required 
-                      type="text" 
-                      name="postcode" 
-                      value={formData.postcode} 
-                      onChange={handleInputChange}
-                      onBlur={handlePostcodeBlur}
-                      placeholder="Postcode"
-                      className={`w-full border px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm uppercase ${errors.postcode ? 'border-red-500' : 'border-gray-200'}`}                    />
-                    {errors.postcode && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.postcode}</p>}
+              {billingSameAsShipping && (
+                <div>
+                  <h2 className="text-[16px] font-bold text-[#4a2c2a] mb-6">Shipping Address</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="md:col-span-2">
+                      <select 
+                        name="country" 
+                        value={formData.country} 
+                        onChange={handleInputChange} 
+                        className={`w-full border bg-white px-4 py-3.5 text-sm text-black focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm ${errors.country ? 'border-red-500' : 'border-gray-200'}`}                    >
+                        <option value="United Kingdom">United Kingdom</option>
+                      </select>
+                      {errors.country && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.country}</p>}
+                    </div>
+                    <div className="md:col-span-2">
+                      <input 
+                        required 
+                        type="text" 
+                        name="address" 
+                        placeholder="Address"
+                        value={formData.address} 
+                        onChange={handleInputChange} 
+                        className={`w-full border px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm ${errors.address ? 'border-red-500' : 'border-gray-200'}`}                    />
+                      {errors.address && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.address}</p>}
+                    </div>
+                    <div>
+                      <input required type="text" name="city" placeholder="City" value={formData.city} onChange={handleInputChange} className="w-full border border-gray-200 px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm" />
+                    </div>
+                    <div>
+                      <input 
+                        required 
+                        type="text" 
+                        name="postcode" 
+                        value={formData.postcode} 
+                        onChange={handleInputChange}
+                        onBlur={handlePostcodeBlur}
+                        placeholder="Postcode"
+                        className={`w-full border px-4 py-3.5 text-sm text-black placeholder:text-gray-400 focus:outline-none focus:border-[#4a2c2a] transition-colors rounded-sm shadow-sm uppercase ${errors.postcode ? 'border-red-500' : 'border-gray-200'}`}                    />
+                      {errors.postcode && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.postcode}</p>}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Billing Address */}
               <div>

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://tilebazaardemowork-production.up.railway.app', // Fallback to railway if env is not set
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://tilebzr-production.up.railway.app', // Fallback to railway if env is not set
   headers: {
     'Content-Type': 'application/json',
   },
