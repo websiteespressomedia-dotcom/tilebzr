@@ -36,46 +36,6 @@ const getCategory = (fileName: string) => {
   return "Tiles";
 };
 
-const autoRegisterProduct = async (cleanFileName: string) => {
-  if (!cleanFileName || typeof cleanFileName !== "string") return null;
-  const displayName = cleanFileName.split('--')[0].replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ').replace(/\s+/g, ' ').trim();
-  const expectedSlug = cleanFileName.toLowerCase();
-  
-  const { data: existing } = await supabase
-    .from('products')
-    .select('id, name, image, price, discount_price, category, size')
-    .eq('slug', expectedSlug)
-    .maybeSingle();
-    
-  if (existing) return existing;
-
-  const category = getCategory(cleanFileName);
-  const size = cleanFileName.toUpperCase().includes("600X1200") ? "600X1200" : (cleanFileName.toUpperCase().includes("600X600") ? "600X600" : "600X600");
-  const finish = getFinish(cleanFileName);
-  const details = getProductDetails(cleanFileName);
-  
-  const { data: newProduct } = await supabase
-    .from('products')
-    .insert([{
-      name: displayName,
-      slug: expectedSlug,
-      description: 'Premium quality tile/accessory.',
-      price: details.price,
-      discount_price: 0,
-      stock: 1000,
-      category: category,
-      finish: finish,
-      size: size,
-      thickness: '9mm',
-      material: 'Porcelain',
-      image: cleanFileName,
-      is_active: true
-    }])
-    .select('id, name, image, price, discount_price, category, size')
-    .single();
-    
-  return newProduct;
-};
 
 const checkIsAccessory = (product: any): boolean => {
   if (!product) return false;
@@ -133,12 +93,7 @@ export const createPaypalPayment = async (req: Request, res: Response) => {
         if (error) console.error("Error fetching by filename:", error);
         if (data) dbProducts = [...dbProducts, ...data];
         
-        for (const fname of filenames) {
-          if (!dbProducts.find(p => p.image === fname || p.slug === fname.toLowerCase())) {
-            const newProd = await autoRegisterProduct(fname);
-            if (newProd) dbProducts.push(newProd);
-          }
-        }
+
       }
 
       cartItems = bodyCartItems.map((item: any) => {
@@ -451,12 +406,7 @@ export const createStripePaymentIntent = async (req: Request, res: Response) => 
         if (error) console.error("Error fetching by filename:", error);
         if (data) dbProducts = [...dbProducts, ...data];
         
-        for (const fname of filenames) {
-          if (!dbProducts.find(p => p.image === fname || p.slug === fname.toLowerCase())) {
-            const newProd = await autoRegisterProduct(fname);
-            if (newProd) dbProducts.push(newProd);
-          }
-        }
+
       }
 
       cartItems = bodyCartItems.map((item: any) => {
@@ -786,12 +736,7 @@ export const placeManualOrder = async (req: Request, res: Response) => {
         if (error) console.error("Error fetching by filename:", error);
         if (data) dbProducts = [...dbProducts, ...data];
         
-        for (const fname of filenames) {
-          if (!dbProducts.find(p => p.image === fname || p.slug === fname.toLowerCase())) {
-            const newProd = await autoRegisterProduct(fname);
-            if (newProd) dbProducts.push(newProd);
-          }
-        }
+
       }
 
       cartItemsList = bodyCartItems.map((item: any) => {

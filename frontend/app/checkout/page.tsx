@@ -549,9 +549,10 @@ export default function CheckoutPage() {
                   </p>
                   <button
                     onClick={handlePlaceOrderClick}
-                    className="w-full bg-[#4a2c2a] text-white py-4 text-[11px] font-black uppercase tracking-[0.25em] hover:bg-black transition-colors rounded-sm flex items-center justify-center gap-2 shadow-md"
+                    disabled={isProcessing}
+                    className={`w-full text-white py-4 text-[11px] font-black uppercase tracking-[0.25em] transition-colors rounded-sm flex items-center justify-center gap-2 shadow-md ${isProcessing ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#4a2c2a] hover:bg-black'}`}
                   >
-                    Place Your Order
+                    {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Place Your Order"}
                   </button>
                 </div>
               </div>
