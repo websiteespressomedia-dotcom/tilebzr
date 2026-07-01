@@ -28,7 +28,7 @@ function LoginForm() {
           // Sync each item to the backend for the newly logged-in user
           await dispatch(addToCartAsync({ product_id: item.product_id, quantity: item.quantity, unit: item.unit })).unwrap();
         }
-        dispatch(clearCart());
+        localStorage.removeItem("tb_guest_cart");
       }
     } catch (e) {
       console.error("Cart sync failed", e);

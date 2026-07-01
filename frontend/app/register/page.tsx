@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { registerUser, googleRegisterUser, googleLoginUser } from '@/store/slices/authSlice';
+import { addToCartAsync } from '@/store/slices/cartSlice';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
@@ -60,6 +61,21 @@ export default function RegisterPage() {
     setValidationError(''); // Clear validation error when user types
   };
 
+  const syncCartIfGuest = async () => {
+    try {
+      const guestCart = localStorage.getItem("tb_guest_cart");
+      if (guestCart) {
+        const items = JSON.parse(guestCart);
+        for (const item of items) {
+          await dispatch(addToCartAsync({ product_id: item.product_id, quantity: item.quantity, unit: item.unit })).unwrap();
+        }
+        localStorage.removeItem("tb_guest_cart");
+      }
+    } catch (e) {
+      console.error("Cart sync failed", e);
+    }
+  };
+
   const validatePhone = (phone: string) => {
     return phone.length > 0;
   };
@@ -87,6 +103,7 @@ export default function RegisterPage() {
       if (data?.user?.role === 'admin') {
         router.push('/admin');
       } else {
+        await syncCartIfGuest();
         router.push('/');
       }
     } else {
@@ -103,6 +120,7 @@ export default function RegisterPage() {
         if (user?.role === 'admin') {
           router.push('/admin');
         } else {
+          await syncCartIfGuest();
           router.push('/');
         }
       } else {
@@ -135,6 +153,7 @@ export default function RegisterPage() {
       if (user?.role === 'admin') {
         router.push('/admin');
       } else {
+        await syncCartIfGuest();
         router.push('/');
       }
     } else {
