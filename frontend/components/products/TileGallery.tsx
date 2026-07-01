@@ -540,6 +540,7 @@ export default function TileGallery({
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [showTopBtn, setShowTopBtn] = useState(false);
   const [visibleCount, setVisibleCount] = useState(12);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     setVisibleCount(12);
@@ -704,6 +705,8 @@ export default function TileGallery({
       const imageUpper = p.image ? p.image.toUpperCase() : "";
       const isComingSoon = categoryUpper === "COMING SOON" || p.is_coming_soon;
 
+      const matchesSearch = !searchQuery || nameUpper.includes(searchQuery.toUpperCase()) || categoryUpper.includes(searchQuery.toUpperCase());
+
       if (sizeFilter === "accessories") {
         let matchesAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper) || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(imageUpper);
         if (finishFilter) {
@@ -720,7 +723,7 @@ export default function TileGallery({
             matchesAccessory = nameUpper.includes("MATTING") || imageUpper.includes("MATTING");
           else matchesAccessory = false;
         }
-        return matchesAccessory;
+        return matchesAccessory && matchesSearch;
       } else {
         const isAccessory = categoryUpper === "ACCESSORIES" || categoryUpper === "ACCESORIES" || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(nameUpper) || /TRIM|SPACER|WEDGE|ADHESIVE|GLUE|MATTING|LEVEL/.test(imageUpper);
         if (isAccessory) return false;
@@ -740,7 +743,10 @@ export default function TileGallery({
         const matchesPlacement =
           !placementFilter ||
           (placementFilter === "outdoor" && isOutdoor) ||
-          (placementFilter === "indoor" && !isOutdoor && finishUpper !== "POSTER") ||
+          (placementFilter === "floor" && !isOutdoor && finishUpper !== "POSTER") ||
+          (placementFilter === "wall" && (categoryUpper.includes("WALL") || nameUpper.includes("WALL"))) ||
+          (placementFilter === "bathroom" && (categoryUpper.includes("BATHROOM") || nameUpper.includes("BATHROOM"))) ||
+          (placementFilter === "kitchen" && (categoryUpper.includes("KITCHEN") || nameUpper.includes("KITCHEN"))) ||
           (placementFilter === "poster" && finishUpper === "POSTER");
 
         const matchesFinish =
@@ -752,10 +758,10 @@ export default function TileGallery({
               : finishUpper === finishFilter.toUpperCase());
 
         const matchesSize = !sizeFilter || sizeLower === sizeFilter.toLowerCase();
-        return matchesPlacement && matchesFinish && matchesSize;
+        return matchesPlacement && matchesFinish && matchesSize && matchesSearch;
       }
     });
-  }, [finishFilter, sizeFilter, placementFilter, deduplicatedProducts]);
+  }, [finishFilter, sizeFilter, placementFilter, deduplicatedProducts, searchQuery]);
 
   // Helper to create URLs for filters
   const createFilterUrl = (type: "size" | "finish" | "placement", value: string | null) => {
@@ -789,18 +795,39 @@ export default function TileGallery({
 
   const filterContent = (
     <div className="space-y-12">
+      {/* Search Filter */}
+      <div className="text-left">
+        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#4a2c2a] mb-4 pl-1">
+          Search
+        </p>
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+            <svg className="w-4 h-4 text-[#4a2c2a]/50" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 text-[10px] font-bold uppercase tracking-widest border border-gray-300 rounded-full focus:outline-none focus:border-[#4a2c2a] transition-all duration-300 placeholder-gray-400 text-gray-800 bg-gray-50 focus:bg-white shadow-sm"
+          />
+        </div>
+      </div>
+
       {/* Application Filter */}
       {sizeFilter !== "accessories" && finishFilter !== "COMING SOON" && (
-        <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
+        <div className="text-left">
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#4a2c2a] mb-4 pl-1">
             Application
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Link
               href={createFilterUrl("placement", null)}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 placementFilter === null
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -810,23 +837,62 @@ export default function TileGallery({
             </Link>
 
             <Link
-              href={createFilterUrl("placement", "indoor")}
+              href={createFilterUrl("placement", "floor")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
-                placementFilter === "indoor"
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
+                placementFilter === "floor"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
               }`}
             >
-              Indoor Tiles
+              Floor Tiles
+            </Link>
+
+            <Link
+              href={createFilterUrl("placement", "wall")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
+                placementFilter === "wall"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Wall Tiles
+            </Link>
+
+            <Link
+              href={createFilterUrl("placement", "bathroom")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
+                placementFilter === "bathroom"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Bathroom Tiles
+            </Link>
+
+            <Link
+              href={createFilterUrl("placement", "kitchen")}
+              scroll={false}
+              onClick={() => setIsMobileFilterOpen(false)}
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
+                placementFilter === "kitchen"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
+                  : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
+              }`}
+            >
+              Kitchen Tiles
             </Link>
 
             <Link
               href={createFilterUrl("placement", "outdoor")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 placementFilter === "outdoor"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -839,7 +905,7 @@ export default function TileGallery({
               href={createFilterUrl("placement", "poster")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 placementFilter === "poster"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -853,16 +919,16 @@ export default function TileGallery({
 
       {/* Dimensions Filter */}
       {finishFilter !== "COMING SOON" && (
-        <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
+        <div className="text-left">
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#4a2c2a] mb-4 pl-1">
             Dimensions
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Link
               href={createFilterUrl("size", null)}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 sizeFilter === null
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -877,7 +943,7 @@ export default function TileGallery({
                 href={createFilterUrl("size", size)}
                 scroll={false}
                 onClick={() => setIsMobileFilterOpen(false)}
-                className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                   sizeFilter === size
                     ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                     : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -891,7 +957,7 @@ export default function TileGallery({
               href={createFilterUrl("size", "accessories")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 sizeFilter === "accessories"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -905,16 +971,16 @@ export default function TileGallery({
 
       {/* Coming Soon Sizes Filter */}
       {finishFilter === "COMING SOON" && (
-        <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
+        <div className="text-left">
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#4a2c2a] mb-4 pl-1">
             Coming Soon Sizes
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Link
               href={createFilterUrl("size", null)}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 sizeFilter === null
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -929,7 +995,7 @@ export default function TileGallery({
                 href={createFilterUrl("size", size)}
                 scroll={false}
                 onClick={() => setIsMobileFilterOpen(false)}
-                className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                   sizeFilter === size
                     ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                     : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -944,24 +1010,22 @@ export default function TileGallery({
 
       {/* Conditional Sub-Filter */}
       {sizeFilter === "accessories" ? (
-        <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
+        <div className="text-left">
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#4a2c2a] mb-4 pl-1">
             Accessory Type
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Link
               href={createFilterUrl("finish", null)}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 border rounded-full transition-all duration-300 inline-flex flex-col items-center justify-center min-h-[48px] hover:scale-105 ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 finishFilter === null
-                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg scale-105"
+                  ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
               }`}
             >
-              <span className="text-[10px] font-bold uppercase tracking-widest">
-                All Types
-              </span>
+              All Types
             </Link>
 
             {accessoriesList.map((acc) => (
@@ -970,34 +1034,28 @@ export default function TileGallery({
                 href={createFilterUrl("finish", acc.id)}
                 scroll={false}
                 onClick={() => setIsMobileFilterOpen(false)}
-                className={`px-7 border rounded-full transition-all duration-300 inline-flex flex-col items-center justify-center min-w-[140px] min-h-[48px] hover:scale-105 ${
+                className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                   finishFilter === acc.id
-                    ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg scale-105"
+                    ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                     : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
                 }`}
               >
-                <span className="text-[10px] font-bold uppercase tracking-widest mb-[2px]">
-                  {acc.name}
-                </span>
-                <span
-                  className={`text-[9px] font-medium tracking-wider ${finishFilter === acc.id ? "text-white/70" : "text-gray-400"}`}
-                >
-                </span>
+                {acc.name}
               </Link>
             ))}
           </div>
         </div>
       ) : (
-        <div className="text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500 mb-6">
+        <div className="text-left">
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#4a2c2a] mb-4 pl-1">
             Surface Finish
           </p>
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Link
               href={createFilterUrl("finish", null)}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 finishFilter === null
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -1010,7 +1068,7 @@ export default function TileGallery({
               href={createFilterUrl("finish", "GLOSSY")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 finishFilter === "GLOSSY"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -1023,7 +1081,7 @@ export default function TileGallery({
               href={createFilterUrl("finish", "HIGH GLOSS")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 finishFilter === "HIGH GLOSS"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -1036,7 +1094,7 @@ export default function TileGallery({
               href={createFilterUrl("finish", "MATT")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 finishFilter === "MATT"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -1051,7 +1109,7 @@ export default function TileGallery({
                 href={createFilterUrl("finish", finish)}
                 scroll={false}
                 onClick={() => setIsMobileFilterOpen(false)}
-                className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+                className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                   finishFilter === finish
                     ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                     : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -1065,7 +1123,7 @@ export default function TileGallery({
               href={createFilterUrl("finish", "NEW ARRIVALS")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 finishFilter === "NEW ARRIVALS"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -1078,7 +1136,7 @@ export default function TileGallery({
               href={createFilterUrl("finish", "COMING SOON")}
               scroll={false}
               onClick={() => setIsMobileFilterOpen(false)}
-              className={`px-7 py-3 text-[10px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 inline-block ${
+              className={`w-full flex items-center justify-center px-2 py-3 text-[9px] font-bold uppercase tracking-widest border rounded-full transition-all duration-300 ${
                 finishFilter === "COMING SOON"
                   ? "bg-[#4a2c2a] text-white border-[#4a2c2a] shadow-lg"
                   : "bg-white text-[#5e7e95] border-gray-100 hover:border-gray-200"
@@ -1094,33 +1152,38 @@ export default function TileGallery({
 
   return (
     <div className="relative pb-24 px-4 md:px-10">
-      {/* Desktop Filters */}
-      <div className="hidden lg:block mb-24 border-b border-gray-50 pb-16">
-        {filterContent}
-      </div>
+      <div className="flex flex-col lg:flex-row gap-8 xl:gap-12">
+        {/* Desktop Filters (Left Sidebar) */}
+        <div className="hidden lg:block w-64 xl:w-72 flex-shrink-0">
+          <div className="sticky top-32 pr-4 border-r border-gray-100 min-h-[50vh]">
+            {filterContent}
+          </div>
+        </div>
 
-      {/* Mobile Trigger */}
-      <div className="lg:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
-        <button
-          onClick={() => setIsMobileFilterOpen(true)}
-          className="bg-[#4a2c2a] text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest transition-transform active:scale-95"
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-          >
-            <path d="M4 21v-7m0-4V3m8 18v-11m0-4V3m8 18v-3m0-4V3M1 14h6m2-11h6m2 11h6" />
-          </svg>
-          Refine Results
-        </button>
-      </div>
+        {/* Main Content Area */}
+        <div className="flex-1">
+          {/* Mobile Trigger */}
+          <div className="lg:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-40">
+            <button
+              onClick={() => setIsMobileFilterOpen(true)}
+              className="bg-[#4a2c2a] text-white px-8 py-4 rounded-full shadow-2xl flex items-center gap-3 text-[10px] font-black uppercase tracking-widest transition-transform active:scale-95"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+              >
+                <path d="M4 21v-7m0-4V3m8 18v-11m0-4V3m8 18v-3m0-4V3M1 14h6m2-11h6m2 11h6" />
+              </svg>
+              Refine Results
+            </button>
+          </div>
 
-      {/* Product Grid (Matching Screenshot & requested design) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-14">
+          {/* Product Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-14">
         {filteredProducts.slice(0, visibleCount).map((p, index) => {
           const imageName = p.image || "";
           const imageNameWithoutQuery = imageName.split("?")[0];
@@ -1142,7 +1205,7 @@ export default function TileGallery({
           const detailPageUrl = productSlug ? `/products/${productSlug}` : `/products/${encodeURIComponent(imageName)}`;
 
           // Generate preview image
-          const previewUrl = getPreviewUrl(imageName, dimension, previewPaths, displayName);
+          const previewUrl = details.isAccessory ? null : getPreviewUrl(imageName, dimension, previewPaths, displayName);
 
             return (
               <div key={`${p.id || imageName}-${index}`} className="group flex flex-col">
@@ -1337,6 +1400,8 @@ export default function TileGallery({
           </p>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
