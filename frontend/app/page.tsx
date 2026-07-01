@@ -6,6 +6,7 @@ import AboutSection from "@/components/home/AboutSection";
 import SampleRequest from "@/components/home/SampleRequest";
 import ContactSection from "@/components/home/ContactSection";
 import InstagramReels from "@/components/home/InstagramReels";
+import ProductDirectory from "@/components/home/ProductDirectory";
 
 export default function Home() {
   return (
@@ -18,6 +19,7 @@ export default function Home() {
       <SampleRequest />
       <ContactSection />
       <InstagramReels />
+      <ProductDirectory />
     </main>
   );
 }

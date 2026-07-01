@@ -744,9 +744,37 @@ export default function TileGallery({
           !placementFilter ||
           (placementFilter === "outdoor" && isOutdoor) ||
           (placementFilter === "floor" && !isOutdoor && finishUpper !== "POSTER") ||
-          (placementFilter === "wall" && (categoryUpper.includes("WALL") || nameUpper.includes("WALL"))) ||
-          (placementFilter === "bathroom" && (categoryUpper.includes("BATHROOM") || nameUpper.includes("BATHROOM"))) ||
-          (placementFilter === "kitchen" && (categoryUpper.includes("KITCHEN") || nameUpper.includes("KITCHEN"))) ||
+          (placementFilter === "wall" && (
+            categoryUpper.includes("WALL") || 
+            nameUpper.includes("WALL") ||
+            [
+              "ARTE FLUO GREY R1", "ARTOVEL 018 HL", "EARTHARO HL", 
+              "EARTHARO BROWN F1", "EL GLITTER AQUA", "EMPARADOR BROWN R2", 
+              "GL 2509 DECOR", "GL 2511 DECOR", "GL 2513 DECORE", 
+              "GL 2514 DECORE", "IRISH RED MP 1", "LEVANTO BLACK 3 MO 1", 
+              "PHANTOM DECOR", "VECTRO 1502 HL 2 PUNCH", "VECTRO 11003 HL", 
+              "VECTRO 11080 HL 1", "VECTRO 11083 A", "VECTRO 11083 B", "VECTRO 11110 HL"
+            ].includes(nameUpper)
+          )) ||
+          (placementFilter === "bathroom" && (
+            categoryUpper.includes("BATHROOM") || 
+            nameUpper.includes("BATHROOM") ||
+            [
+              "ALEXA BROWN R1", "ARABESCATO_R1", "ARTOVEL 018 DK R1", 
+              "ARTOVEL 018 HL", "EARTHARO HL", "EARTHARO BROWN F1", 
+              "EL BLUE BELL LIGHT", "PRIZMA 08 HL", "PRIZMA 08 LT R1", 
+              "VECTRO 11051 HL", "VECTRO 11051 LT", "VECTRO 11110 HL", "VECTRO 11110 LT R2"
+            ].includes(nameUpper)
+          )) ||
+          (placementFilter === "kitchen" && (
+            categoryUpper.includes("KITCHEN") || 
+            nameUpper.includes("KITCHEN") ||
+            [
+              "EL STATUARIO FANTASTICO R1", "EL STATUARIO PRIME R1", 
+              "ALEXA BIANCO R1", "GL-2513-LT-R1", "GL 2514 LT R1", 
+              "LUX 09 R1", "PRIZMA 26 LT R1", "PRIZMA 27 LT R1"
+            ].includes(nameUpper)
+          )) ||
           (placementFilter === "poster" && finishUpper === "POSTER");
 
         const matchesFinish =
