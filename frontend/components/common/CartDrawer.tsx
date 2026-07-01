@@ -306,11 +306,8 @@ export default function CartDrawer({
   const totalPallets = Math.ceil(totalWeight / 1000);
   const displayPallet = totalPallets > 0 ? `${totalPallets} FULL` : "0";
 
-  useEffect(() => {
-    if (isOpen && token) {
-      dispatch(fetchCart());
-    }
-  }, [isOpen, token, dispatch]);
+  // Removed redundant fetchCart on drawer open to prevent overwriting local fallback items
+  // Navbar already handles initial fetch and addToCartAsync handles updates.
 
   const handleUpdateQuantity = async (
     cartItemId: string,

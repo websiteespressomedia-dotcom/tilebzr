@@ -368,6 +368,7 @@
 import React, { useState, useRef } from "react";
 import { FiPhone, FiMail, FiArrowRight, FiCheck, FiAlertCircle } from "react-icons/fi";
 import api from "@/lib/axios";
+import toast from "react-hot-toast";
 
 export default function ContactPage() {
   const formRef = useRef<HTMLFormElement>(null);
@@ -494,11 +495,25 @@ export default function ContactPage() {
                   Close, Slough, SL2 5EP
                 </p>
                 <div className="space-y-4">
-                  <a href="tel:+447424252426" className="group flex items-center gap-4 text-lg md:text-xl font-serif">
-                    <FiPhone className="text-sm opacity-40" /> +44 7424 252426
+                  <a 
+                    href="tel:+447424252426" 
+                    onClick={() => {
+                      navigator.clipboard.writeText("+44 7424 252426");
+                      toast.success("Phone number copied to clipboard!");
+                    }}
+                    className="group flex items-center gap-4 text-lg md:text-xl font-serif relative z-10 cursor-pointer hover:underline hover:text-black transition-colors"
+                  >
+                    <FiPhone className="text-sm opacity-40 group-hover:opacity-100 transition-opacity" /> +44 7424 252426
                   </a>
-                  <a href="mailto:info@tilebazaar.co.uk" className="group flex items-center gap-4 text-lg md:text-xl font-light">
-                    <FiMail className="text-sm opacity-40" /> info@tilebazaar.co.uk
+                  <a 
+                    href="mailto:info@tilebazaar.co.uk" 
+                    onClick={() => {
+                      navigator.clipboard.writeText("info@tilebazaar.co.uk");
+                      toast.success("Email copied to clipboard!");
+                    }}
+                    className="group flex items-center gap-4 text-lg md:text-xl font-light relative z-10 cursor-pointer hover:underline hover:text-black transition-colors"
+                  >
+                    <FiMail className="text-sm opacity-40 group-hover:opacity-100 transition-opacity" /> info@tilebazaar.co.uk
                   </a>
                 </div>
               </div>

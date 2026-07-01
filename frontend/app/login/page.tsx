@@ -2,6 +2,7 @@
 import React, { useState, Suspense } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { loginUser, googleLoginUser } from '@/store/slices/authSlice';
+import { addToCartAsync, clearCart } from '@/store/slices/cartSlice';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { IoEyeOutline, IoEyeOffOutline } from 'react-icons/io5';
@@ -18,6 +19,22 @@ function LoginForm() {
   const { loading, error } = useAppSelector((state) => state.auth);
   const [showPassword, setShowPassword] = useState(false);
 
+  const syncCartIfGuest = async () => {
+    try {
+      const guestCart = localStorage.getItem("tb_guest_cart");
+      if (guestCart) {
+        const items = JSON.parse(guestCart);
+        for (const item of items) {
+          // Sync each item to the backend for the newly logged-in user
+          await dispatch(addToCartAsync({ product_id: item.product_id, quantity: item.quantity, unit: item.unit })).unwrap();
+        }
+        dispatch(clearCart());
+      }
+    } catch (e) {
+      console.error("Cart sync failed", e);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
@@ -28,6 +45,7 @@ function LoginForm() {
       if (user.role === 'admin') {
         router.push('/admin');
       } else {
+        await syncCartIfGuest();
         router.push(redirect);
       }
     } else {
@@ -43,6 +61,7 @@ function LoginForm() {
         if (user.role === 'admin') {
           router.push('/admin');
         } else {
+          await syncCartIfGuest();
           router.push(redirect);
         }
       } else {
