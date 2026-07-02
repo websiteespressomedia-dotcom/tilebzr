@@ -18,10 +18,10 @@ export default function Footer() {
               <Image
                 src={logoImg}
                 alt="Logo"
-                className="w-auto h-[65px] object-contain" 
+                className="w-auto h-[120px] object-contain" 
               />
             </div>
-            <p className="text-[16px] text-[#4a2c2a]/80 mb-8 max-w-[400px] font-bold leading-relaxed">
+            <p className="text-[20px] text-[#4a2c2a]/80 mb-8 max-w-[400px] font-bold leading-relaxed">
               Factory-price tiles for floors, walls and outdoor spaces, delivered across the UK.
             </p>
 
@@ -76,7 +76,7 @@ export default function Footer() {
         </div>
 
         {/* MIDDLE SECTION: Navigation Links */}
-        <div className="border-t border-gray-200 pt-12 pb-12">
+        <div className="border-t border-gray-200 pt-12 pb-4">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
             
             {/* Column 1: Application */}
@@ -139,6 +139,12 @@ export default function Footer() {
                 <li><Link href="/about" className="text-[14px] font-bold text-[#4a2c2a]/80 hover:text-[#ea7d32] transition-colors">About us</Link></li>
                 <li><Link href="/products" className="text-[14px] font-bold text-[#4a2c2a]/80 hover:text-[#ea7d32] transition-colors">Products</Link></li>
               </ul>
+              {/* Browse all tiles button */}
+              <div className="mt-8">
+                <Link href="/products" className="inline-flex items-center gap-2 bg-[#4a2c2a] text-white px-4 py-2 rounded-sm font-bold text-[12px] hover:bg-[#3d2422] transition-colors shadow-md">
+                  Browse all tiles <ArrowRight size={14} />
+                </Link>
+              </div>
             </div>
 
             {/* Column 6: Policies */}
@@ -153,13 +159,7 @@ export default function Footer() {
               </ul>
             </div>
 
-          </div>
-          
-          {/* Browse all tiles button */}
-          <div className="flex justify-center mt-12">
-            <Link href="/products" className="flex items-center gap-3 bg-[#4a2c2a] text-white px-8 py-3.5 rounded-sm font-bold text-[13px] hover:bg-[#3d2422] transition-colors shadow-md">
-              Browse all tiles <ArrowRight size={16} />
-            </Link>
+
           </div>
         </div>
 
